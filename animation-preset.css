@@ -278,8 +278,9 @@ body:not(.elementor-editor-active) .image-reveal img {
    IMAGE REVEAL DIRECTION HELPERS
    Add one of these to control mask direction
    e.g. class="image-reveal image-reveal-right"
+   Apply everywhere so preview/editor matches frontend.
 =================================== */
-body:not(.elementor-editor-active) .image-reveal-left { --reveal-direction: left; }
-body:not(.elementor-editor-active) .image-reveal-right { --reveal-direction: right; }
-body:not(.elementor-editor-active) .image-reveal-top { --reveal-direction: top; }
-body:not(.elementor-editor-active) .image-reveal-bottom { --reveal-direction: bottom; }
+.image-reveal-left { --reveal-direction: left; }
+.image-reveal-right { --reveal-direction: right; }
+.image-reveal-top { --reveal-direction: top; }
+.image-reveal-bottom { --reveal-direction: bottom; }
