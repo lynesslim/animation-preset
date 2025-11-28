@@ -1,0 +1,276 @@
+/* ================================
+   SPLIT TEXT REVEAL (slide up)
+=================================== */
+.split-text-reveal-up .line {
+  overflow: hidden;
+}
+.text-reveal-line-wrapper {
+  overflow: hidden;
+}
+
+/* ================================
+   FADE UP (frontend only)
+=================================== */
+body:not(.elementor-editor-active) .anim-fade-up {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+/* ================================
+   BLUR REVEAL (frontend only)
+   - We only hide it on live site, not in editor
+=================================== */
+body:not(.elementor-editor-active) .blur-reveal {
+  --animation-delay: 0s;
+  --animation-duration: 1.5s;
+  --move-distance: -20px;
+
+  opacity: 0;
+  filter: blur(20px);
+  transform: translateY(var(--move-distance)) scale(1.1);
+}
+
+/* ================================
+   SCROLL FILL TEXT – generic
+   Works for any widget with class "scroll-fill-text"
+=================================== */
+.scroll-fill-text,
+.scroll-fill-text .elementor-heading-title,
+.scroll-fill-text p,
+.scroll-fill-text span,
+.scroll-fill-text h1,
+.scroll-fill-text h2,
+.scroll-fill-text h3,
+.scroll-fill-text h4,
+.scroll-fill-text h5,
+.scroll-fill-text h6 {
+  position: relative;
+  /* gradient/clip/etc will be set by JS */
+}
+
+/* ================================
+   SCROLL TRANSFORM – customizable transform animation
+   Works for any widget with class "scroll-transform"
+   Control via CSS custom properties or data attributes
+=================================== */
+body:not(.elementor-editor-active) .scroll-transform {
+  /* Initial state - set these via CSS or data attributes */
+  --transform-start-x: 0px;
+  --transform-start-y: 0px;
+  --transform-start-rotate: 0deg;
+  --transform-start-scale: 1;
+  --transform-start-opacity: 0;
+  --transform-start-blur: 0px;
+  
+  /* End state - set these via CSS or data attributes */
+  --transform-end-x: 0px;
+  --transform-end-y: 0px;
+  --transform-end-rotate: 0deg;
+  --transform-end-scale: 1;
+  --transform-end-opacity: 1;
+  --transform-end-blur: 0px;
+  
+  /* Animation settings */
+  --transform-duration: 1s;
+  --transform-delay: 0s;
+  --transform-ease: power2.out;
+  --transform-trigger: top 85%;
+  
+  /* Apply initial state - will be overridden by JS */
+  transform: translateX(var(--transform-start-x)) translateY(var(--transform-start-y)) rotate(var(--transform-start-rotate));
+  opacity: var(--transform-start-opacity);
+  filter: blur(var(--transform-start-blur));
+}
+
+/* ================================
+   SCROLL TRANSFORM PRESETS
+   Add these classes along with "scroll-transform" for quick animations
+   =================================== */
+
+/* Fade in from left */
+body:not(.elementor-editor-active) .scroll-transform.fade-left {
+  --transform-start-x: -100px;
+  --transform-start-y: 0px;
+  --transform-start-opacity: 0;
+  --transform-end-x: 0px;
+  --transform-end-y: 0px;
+  --transform-end-opacity: 1;
+}
+
+/* Fade in from right */
+body:not(.elementor-editor-active) .scroll-transform.fade-right {
+  --transform-start-x: 100px;
+  --transform-start-y: 0px;
+  --transform-start-opacity: 0;
+  --transform-end-x: 0px;
+  --transform-end-y: 0px;
+  --transform-end-opacity: 1;
+}
+
+/* Fade in from bottom (up) */
+body:not(.elementor-editor-active) .scroll-transform.fade-up {
+  --transform-start-x: 0px;
+  --transform-start-y: 50px;
+  --transform-start-opacity: 0;
+  --transform-end-x: 0px;
+  --transform-end-y: 0px;
+  --transform-end-opacity: 1;
+}
+
+/* Fade in from top (down) */
+body:not(.elementor-editor-active) .scroll-transform.fade-down {
+  --transform-start-x: 0px;
+  --transform-start-y: -50px;
+  --transform-start-opacity: 0;
+  --transform-end-x: 0px;
+  --transform-end-y: 0px;
+  --transform-end-opacity: 1;
+}
+
+/* Zoom in with fade */
+body:not(.elementor-editor-active) .scroll-transform.zoom-in {
+  --transform-start-x: 0px;
+  --transform-start-y: 0px;
+  --transform-start-scale: 0.8;
+  --transform-start-opacity: 0;
+  --transform-end-x: 0px;
+  --transform-end-y: 0px;
+  --transform-end-scale: 1;
+  --transform-end-opacity: 1;
+}
+
+/* Zoom out with fade */
+body:not(.elementor-editor-active) .scroll-transform.zoom-out {
+  --transform-start-x: 0px;
+  --transform-start-y: 0px;
+  --transform-start-scale: 1.2;
+  --transform-start-opacity: 0;
+  --transform-end-x: 0px;
+  --transform-end-y: 0px;
+  --transform-end-scale: 1;
+  --transform-end-opacity: 1;
+}
+
+/* Blur fade in (center, no movement) */
+body:not(.elementor-editor-active) .scroll-transform.blur-fade {
+  --transform-start-x: 0px;
+  --transform-start-y: 0px;
+  --transform-start-opacity: 0;
+  --transform-start-blur: 20px;
+  --transform-end-x: 0px;
+  --transform-end-y: 0px;
+  --transform-end-opacity: 1;
+  --transform-end-blur: 0px;
+}
+
+/* Blur fade in from left */
+body:not(.elementor-editor-active) .scroll-transform.blur-fade-left {
+  --transform-start-x: -100px;
+  --transform-start-y: 0px;
+  --transform-start-opacity: 0;
+  --transform-start-blur: 20px;
+  --transform-end-x: 0px;
+  --transform-end-y: 0px;
+  --transform-end-opacity: 1;
+  --transform-end-blur: 0px;
+}
+
+/* Blur fade in from right */
+body:not(.elementor-editor-active) .scroll-transform.blur-fade-right {
+  --transform-start-x: 100px;
+  --transform-start-y: 0px;
+  --transform-start-opacity: 0;
+  --transform-start-blur: 20px;
+  --transform-end-x: 0px;
+  --transform-end-y: 0px;
+  --transform-end-opacity: 1;
+  --transform-end-blur: 0px;
+}
+
+/* Blur fade in from bottom (up) */
+body:not(.elementor-editor-active) .scroll-transform.blur-fade-up {
+  --transform-start-x: 0px;
+  --transform-start-y: 50px;
+  --transform-start-opacity: 0;
+  --transform-start-blur: 20px;
+  --transform-end-x: 0px;
+  --transform-end-y: 0px;
+  --transform-end-opacity: 1;
+  --transform-end-blur: 0px;
+}
+
+/* Blur fade in from top (down) */
+body:not(.elementor-editor-active) .scroll-transform.blur-fade-down {
+  --transform-start-x: 0px;
+  --transform-start-y: -50px;
+  --transform-start-opacity: 0;
+  --transform-start-blur: 20px;
+  --transform-end-x: 0px;
+  --transform-end-y: 0px;
+  --transform-end-opacity: 1;
+  --transform-end-blur: 0px;
+}
+
+/* Blur zoom in (modern effect) */
+body:not(.elementor-editor-active) .scroll-transform.blur-zoom-in {
+  --transform-start-x: 0px;
+  --transform-start-y: 0px;
+  --transform-start-scale: 0.8;
+  --transform-start-opacity: 0;
+  --transform-start-blur: 15px;
+  --transform-end-x: 0px;
+  --transform-end-y: 0px;
+  --transform-end-scale: 1;
+  --transform-end-opacity: 1;
+  --transform-end-blur: 0px;
+}
+
+/* Blur zoom out (modern effect) */
+body:not(.elementor-editor-active) .scroll-transform.blur-zoom-out {
+  --transform-start-x: 0px;
+  --transform-start-y: 0px;
+  --transform-start-scale: 1.2;
+  --transform-start-opacity: 0;
+  --transform-start-blur: 15px;
+  --transform-end-x: 0px;
+  --transform-end-y: 0px;
+  --transform-end-scale: 1;
+  --transform-end-opacity: 1;
+  --transform-end-blur: 0px;
+}
+
+/* Fade only (no movement) */
+body:not(.elementor-editor-active) .scroll-transform.fade {
+  --transform-start-x: 0px;
+  --transform-start-y: 0px;
+  --transform-start-opacity: 0;
+  --transform-end-x: 0px;
+  --transform-end-y: 0px;
+  --transform-end-opacity: 1;
+}
+
+/* ================================
+   IMAGE REVEAL ANIMATION
+   Smooth mask reveal with zoom effect for images
+   Add class "image-reveal" to image container
+=================================== */
+body:not(.elementor-editor-active) .image-reveal {
+  --reveal-duration: 1.5s;
+  --reveal-delay: 0s;
+  --reveal-ease: power2.out;
+  --reveal-trigger: top 85%;
+  --reveal-image-scale: 1.3;
+  
+  /* Initial state - hidden */
+  visibility: hidden;
+  overflow: hidden;
+}
+
+body:not(.elementor-editor-active) .image-reveal img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  will-change: transform;
+}
+
