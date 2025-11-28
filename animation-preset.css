@@ -260,6 +260,7 @@ body:not(.elementor-editor-active) .image-reveal {
   --reveal-ease: power2.out;
   --reveal-trigger: top 85%;
   --reveal-image-scale: 1.3;
+  --reveal-direction: left; /* default direction */
   
   /* Initial state - hidden */
   visibility: hidden;
@@ -273,4 +274,12 @@ body:not(.elementor-editor-active) .image-reveal img {
   display: block;
   will-change: transform;
 }
-
+/* ================================
+   IMAGE REVEAL DIRECTION HELPERS
+   Add one of these to control mask direction
+   e.g. class="image-reveal image-reveal-right"
+=================================== */
+body:not(.elementor-editor-active) .image-reveal-left { --reveal-direction: left; }
+body:not(.elementor-editor-active) .image-reveal-right { --reveal-direction: right; }
+body:not(.elementor-editor-active) .image-reveal-top { --reveal-direction: top; }
+body:not(.elementor-editor-active) .image-reveal-bottom { --reveal-direction: bottom; }

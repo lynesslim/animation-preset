@@ -444,22 +444,40 @@ document.addEventListener('DOMContentLoaded', function () {
         },
       });
 
+      // Determine reveal direction (left, right, top, bottom)
+      const direction = (styles.getPropertyValue('--reveal-direction')?.trim() || container.dataset.revealDirection || 'left').toLowerCase();
+      const fullClip = 'polygon(0 0, 100% 0, 100% 100%, 0 100%)';
+      let startClip;
+      switch (direction) {
+        case 'right':
+          startClip = 'polygon(100% 0, 100% 0, 100% 100%, 100% 100%)';
+          break;
+        case 'top':
+          startClip = 'polygon(0 0, 100% 0, 100% 0, 0 0)';
+          break;
+        case 'bottom':
+          startClip = 'polygon(0 100%, 100% 100%, 100% 100%, 0 100%)';
+          break;
+        default: // 'left'
+          startClip = 'polygon(0 0, 0 0, 0 100%, 0 100%)';
+      }
+
       // Set container to visible
       tl.set(container, { 
         autoAlpha: 1,
         immediateRender: true,
       });
 
-      // Reveal container using polygon clip-path (from left to right)
+      // Reveal container using polygon clip-path
       tl.fromTo(
         container,
         {
-          clipPath: 'polygon(0 0, 0 0, 0 100%, 0% 100%)',
-          webkitClipPath: 'polygon(0 0, 0 0, 0 100%, 0% 100%)',
+          clipPath: startClip,
+          webkitClipPath: startClip,
         },
         {
-          clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%)',
-          webkitClipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%)',
+          clipPath: fullClip,
+          webkitClipPath: fullClip,
           duration: duration,
           ease: ease,
         },
@@ -493,4 +511,3 @@ document.addEventListener('DOMContentLoaded', function () {
 
   initAllAnimations();
 });
-
