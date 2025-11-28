@@ -254,13 +254,16 @@ body:not(.elementor-editor-active) .scroll-transform.fade {
    Smooth mask reveal with zoom effect for images
    Add class "image-reveal" to image container
 =================================== */
+.image-reveal {
+  --reveal-direction: left; /* default direction */
+}
+
 body:not(.elementor-editor-active) .image-reveal {
   --reveal-duration: 1.5s;
   --reveal-delay: 0s;
   --reveal-ease: power2.out;
   --reveal-trigger: top 85%;
   --reveal-image-scale: 1.3;
-  --reveal-direction: left; /* default direction */
   
   /* Initial state - hidden */
   visibility: hidden;
