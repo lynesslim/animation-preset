@@ -1633,7 +1633,6 @@ add_action('admin_post_supercraft_validate_now', function() {
     exit;
 });
 
-} // End if supercraft_is_validated()
 function supercraft_schedule_validation() {
     if (!wp_next_scheduled('supercraft_daily_validation')) {
         wp_schedule_event(time(), 'daily', 'supercraft_daily_validation');
@@ -1642,9 +1641,9 @@ function supercraft_schedule_validation() {
 add_action('wp', 'supercraft_schedule_validation');
 
 function supercraft_daily_validation_event() {
-    $code = supercraft_get_embed_code();
+    $code = get_option('supercraft_embed_code', '');
     if (!empty($code)) {
-        $valid = supercraft_validate_embed_code($code);
+        $valid = supercraft_validate_embed_code_standalone($code);
         update_option('supercraft_validation_status', $valid ? 'valid' : 'invalid');
         update_option('supercraft_last_validated', current_time('mysql'));
     }
@@ -1657,7 +1656,7 @@ function supercraft_admin_notice() {
         return;
     }
 
-    $status = supercraft_get_validation_status();
+    $status = get_option('supercraft_validation_status', 'not_set');
     if ($status === 'invalid') {
         echo '<div class="notice notice-warning is-dismissible">
             <p><strong>Supercraft Animations:</strong> Embed code is invalid. Animations are disabled. <a href="' . admin_url('admin.php?page=supercraft-animations') . '">Enter a valid embed code</a>.</p>
