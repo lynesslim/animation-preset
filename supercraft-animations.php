@@ -1037,6 +1037,9 @@ add_action('elementor/element/container/after_section_end', $supercraft_controls
 add_action('elementor/element/container/section_layout/after_section_end', $supercraft_controls_callback, 10, 2);
 add_action('elementor/element/container/section_advanced/after_section_end', $supercraft_controls_callback, 10, 2);
 
+// Only register icon controls if validated (dev mode always allowed)
+if (supercraft_is_validated()) {
+
 // Add custom icon for Superanimate section in Elementor panel
 add_action('elementor/editor/after_enqueue_scripts', function () {
     $icon_url = plugins_url('favicon.webp', __FILE__);
@@ -1495,4 +1498,236 @@ function supercraft_global_css_var($global) {
         return '';
     }
     return 'var(--e-global-color-' . $raw . ')';
+}
+
+/**
+ * ==========================================
+ * SUPABASE VALIDATION SYSTEM
+ * ==========================================
+ */
+
+// Load config if exists
+$config_path = plugin_dir_path(__FILE__) . 'supercraft-config.php';
+if (file_exists($config_path)) {
+    require_once $config_path;
+}
+
+function supercraft_get_validation_status() {
+    return get_option('supercraft_validation_status', 'not_set');
+}
+
+function supercraft_get_embed_code() {
+    return get_option('supercraft_embed_code', '');
+}
+
+function supercraft_get_last_validated() {
+    return get_option('supercraft_last_validated', '');
+}
+
+function supercraft_validate_embed_code($embed_code) {
+    if (empty($embed_code) || !defined('SUPERCRAFT_SUPABASE_URL')) {
+        return false;
+    }
+
+    $code_col = defined('SUPERCRAFT_CODE_COLUMN') ? SUPERCRAFT_CODE_COLUMN : 'embed_public_key';
+    $url = SUPERCRAFT_SUPABASE_URL . '/rest/v1/' . SUPERCRAFT_TABLE . '?' . $code_col . '=eq.' . urlencode($embed_code);
+
+    $response = wp_remote_get($url, [
+        'headers' => [
+            'apikey' => SUPERCRAFT_SUPABASE_ANON_KEY,
+            'Authorization' => 'Bearer ' . SUPERCRAFT_SUPABASE_ANON_KEY,
+        ],
+        'timeout' => 15,
+    ]);
+
+    if (is_wp_error($response)) {
+        return false;
+    }
+
+    $body = wp_remote_retrieve_body($response);
+    $data = json_decode($body, true);
+
+    // Valid if we get any results back
+    return !empty($data) && is_array($data);
+}
+
+function supercraft_save_embed_code() {
+    check_admin_referer('supercraft_save_settings');
+
+    $code = isset($_POST['supercraft_embed_code']) ? sanitize_text_field($_POST['supercraft_embed_code']) : '';
+
+    update_option('supercraft_embed_code', $code);
+
+    if (!empty($code)) {
+        $valid = supercraft_validate_embed_code($code);
+        update_option('supercraft_validation_status', $valid ? 'valid' : 'invalid');
+    } else {
+        update_option('supercraft_validation_status', 'not_set');
+    }
+
+    update_option('supercraft_last_validated', current_time('mysql'));
+
+    wp_redirect(add_query_arg('updated', 'true', wp_get_referer()));
+    exit;
+}
+
+function supercraft_admin_menu() {
+    add_menu_page(
+        'Supercraft Settings',
+        'Supercraft Animations',
+        'manage_options',
+        'supercraft-animations',
+        'supercraft_render_admin_page',
+        'dashicons-controls-play',
+        80
+    );
+}
+add_action('admin_menu', 'supercraft_admin_menu');
+
+function supercraft_render_admin_page() {
+    $status = supercraft_get_validation_status();
+    $embed_code = supercraft_get_embed_code();
+    $last_validated = supercraft_get_last_validated();
+    $show_all_tabs = defined('SUPERCRAFT_SUPABASE_URL');
+
+    ?>
+    <div class="wrap">
+        <h1>Supercraft Animations</h1>
+        
+        <?php if (isset($_GET['updated'])): ?>
+            <div class="notice notice-success is-dismissible">
+                <p>Settings saved.</p>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!$show_all_tabs): ?>
+            <div class="notice notice-error">
+                <p>Configuration file missing. Please create supercraft-config.php</p>
+            </div>
+        <?php endif; ?>
+
+        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
+            <?php wp_nonce_field('supercraft_save_settings'); ?>
+            <input type="hidden" name="action" value="supercraft_save_embed_code">
+
+            <table class="form-table">
+                <tr>
+                    <th scope="row">
+                        <label for="supercraft_embed_code">Embed Code</label>
+                    </th>
+                    <td>
+                        <input type="text" 
+                               id="supercraft_embed_code" 
+                               name="supercraft_embed_code" 
+                               class="regular-text" 
+                               value="<?php echo esc_attr($embed_code); ?>"
+                               placeholder="Enter your embed code">
+                        <p class="description">Enter the embed code from Supabase</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">Validation Status</th>
+                    <td>
+                        <?php if ($status === 'valid'): ?>
+                            <span style="color: green; font-weight: bold;">✓ Valid</span>
+                        <?php elseif ($status === 'invalid'): ?>
+                            <span style="color: red; font-weight: bold;">✗ Invalid</span>
+                        <?php else: ?>
+                            <span style="color: gray;">Not Set</span>
+                        <?php endif; ?>
+                        <?php if ($last_validated): ?>
+                            <p class="description">Last validated: <?php echo esc_html($last_validated); ?></p>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            </table>
+
+            <?php submit_button('Save & Validate'); ?>
+        </form>
+
+        <hr>
+
+        <h2>Re-validate</h2>
+        <p>Embed codes are automatically re-validated once per day.</p>
+        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
+            <?php wp_nonce_field('supercraft_validate'); ?>
+            <input type="hidden" name="action" value="supercraft_validate_now">
+            <?php submit_button('Validate Now', 'secondary', 'submit', false); ?>
+        </form>
+    </div>
+    <?php
+}
+
+add_action('admin_post_supercraft_save_embed_code', 'supercraft_save_embed_code');
+
+function supercraft_manual_validate() {
+    check_admin_referer('supercraft_validate');
+
+    $code = supercraft_get_embed_code();
+    if (!empty($code)) {
+        $valid = supercraft_validate_embed_code($code);
+        update_option('supercraft_validation_status', $valid ? 'valid' : 'invalid');
+        update_option('supercraft_last_validated', current_time('mysql'));
+    }
+
+    wp_redirect(add_query_arg('updated', 'true', wp_get_referer()));
+    exit;
+}
+add_action('admin_post_supercraft_validate_now', 'supercraft_manual_validate');
+
+// WP Cron for daily re-validation
+function supercraft_schedule_validation() {
+    if (!wp_next_scheduled('supercraft_daily_validation')) {
+        wp_schedule_event(time(), 'daily', 'supercraft_daily_validation');
+    }
+}
+add_action('wp', 'supercraft_schedule_validation');
+
+function supercraft_daily_validation_event() {
+    $code = supercraft_get_embed_code();
+    if (!empty($code)) {
+        $valid = supercraft_validate_embed_code($code);
+        update_option('supercraft_validation_status', $valid ? 'valid' : 'invalid');
+        update_option('supercraft_last_validated', current_time('mysql'));
+    }
+}
+add_action('supercraft_daily_validation', 'supercraft_daily_validation_event');
+
+/**
+ * Check if plugin is validated before enabling features
+ */
+function supercraft_is_validated() {
+    // Skip check if no config (dev mode)
+    if (!defined('SUPERCRAFT_SUPABASE_URL')) {
+        return true;
+    }
+
+    $status = supercraft_get_validation_status();
+    return $status === 'valid';
+}
+
+// Show admin notice if not validated
+function supercraft_admin_notice() {
+    if (!defined('SUPERCRAFT_SUPABASE_URL')) {
+        return;
+    }
+
+    $status = supercraft_get_validation_status();
+    if ($status === 'invalid') {
+        echo '<div class="notice notice-warning is-dismissible">
+            <p><strong>Supercraft Animations:</strong> Embed code is invalid. Animations are disabled. <a href="' . admin_url('admin.php?page=supercraft-animations') . '">Enter a valid embed code</a>.</p>
+        </div>';
+    }
+}
+add_action('admin_notices', 'supercraft_admin_notice');
+
+} // End if supercraft_is_validated()
+
+// Disable frontend animations when not validated
+if (!supercraft_is_validated()) {
+    remove_action('wp_enqueue_scripts', 'supercraft_anim_enqueue_assets');
+    remove_action('elementor/frontend/after_enqueue_scripts', 'supercraft_anim_enqueue_assets');
+    remove_action('elementor/preview/enqueue_scripts', 'supercraft_anim_enqueue_assets');
+    remove_action('elementor/frontend/widget/before_render', 'supercraft_apply_attrs');
+    remove_action('elementor/frontend/container/before_render', 'supercraft_apply_attrs');
 }
