@@ -1054,8 +1054,6 @@ add_action('elementor/element/container/section_advanced/after_section_end', $su
 
 // Only register icon controls if validated (dev mode always allowed)
 if (supercraft_is_validated()) {
-
-// Add custom icon for Superanimate section in Elementor panel
 add_action('elementor/editor/after_enqueue_scripts', function () {
     $icon_url = plugins_url('favicon.webp', __FILE__);
     $css = "
