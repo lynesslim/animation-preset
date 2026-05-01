@@ -10,6 +10,21 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// Load Supabase config early
+$config_path = plugin_dir_path(__FILE__) . 'supercraft-config.php';
+if (file_exists($config_path)) {
+    require_once $config_path;
+}
+
+// Validation status helper (must be defined early)
+function supercraft_is_validated() {
+    if (!defined('SUPERCRAFT_SUPABASE_URL')) {
+        return true;
+    }
+    $status = get_option('supercraft_validation_status', 'not_set');
+    return $status === 'valid';
+}
+
 // Enqueue frontend and Elementor preview assets
 add_action('wp_enqueue_scripts', 'supercraft_anim_enqueue_assets');
 add_action('elementor/frontend/after_enqueue_scripts', 'supercraft_anim_enqueue_assets');
@@ -1506,12 +1521,6 @@ function supercraft_global_css_var($global) {
  * ==========================================
  */
 
-// Load config if exists
-$config_path = plugin_dir_path(__FILE__) . 'supercraft-config.php';
-if (file_exists($config_path)) {
-    require_once $config_path;
-}
-
 function supercraft_get_validation_status() {
     return get_option('supercraft_validation_status', 'not_set');
 }
@@ -1530,7 +1539,11 @@ function supercraft_validate_embed_code($embed_code) {
     }
 
     $code_col = defined('SUPERCRAFT_CODE_COLUMN') ? SUPERCRAFT_CODE_COLUMN : 'embed_public_key';
-    $url = SUPERCRAFT_SUPABASE_URL . '/rest/v1/' . SUPERCRAFT_TABLE . '?' . $code_col . '=eq.' . urlencode($embed_code);
+    $plugin_name = defined('SUPERCRAFT_PLUGIN_NAME') ? SUPERCRAFT_PLUGIN_NAME : 'supercraft-superanimation';
+    $domain = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
+
+    // Step 1: Check if embed code exists in projects table
+    $url = SUPERCRAFT_SUPABASE_URL . '/rest/v1/' . SUPERCRAFT_TABLE . '?select=id&' . $code_col . '=eq.' . urlencode($embed_code);
 
     $response = wp_remote_get($url, [
         'headers' => [
@@ -1547,8 +1560,50 @@ function supercraft_validate_embed_code($embed_code) {
     $body = wp_remote_retrieve_body($response);
     $data = json_decode($body, true);
 
-    // Valid if we get any results back
-    return !empty($data) && is_array($data);
+    if (empty($data) || !is_array($data)) {
+        return false;
+    }
+
+    $project_id = $data[0]['id'];
+
+    // Step 2: Check if already registered to different domain
+    $reg_url = SUPERCRAFT_SUPABASE_URL . '/rest/v1/project_plugin_registrations?project_id=eq.' . $project_id . '&plugin_name=eq.' . urlencode($plugin_name);
+
+    $reg_response = wp_remote_get($reg_url, [
+        'headers' => [
+            'apikey' => SUPERCRAFT_SUPABASE_ANON_KEY,
+            'Authorization' => 'Bearer ' . SUPERCRAFT_SUPABASE_ANON_KEY,
+        ],
+        'timeout' => 15,
+    ]);
+
+    $reg_body = wp_remote_retrieve_body($reg_response);
+    $reg_data = json_decode($reg_body, true);
+
+    if (!empty($reg_data) && is_array($reg_data)) {
+        // Already registered - check same domain
+        $existing_domain = isset($reg_data[0]['registered_domain']) ? $reg_data[0]['registered_domain'] : '';
+        if (!empty($existing_domain) && $existing_domain !== $domain) {
+            return false; // Already used on different domain
+        }
+    } else {
+        // No registration yet - insert new
+        $insert_response = wp_remote_post(SUPERCRAFT_SUPABASE_URL . '/rest/v1/project_plugin_registrations', [
+            'headers' => [
+                'apikey' => SUPERCRAFT_SUPABASE_ANON_KEY,
+                'Authorization' => 'Bearer ' . SUPERCRAFT_SUPABASE_ANON_KEY,
+                'Content-Type' => 'application/json',
+                'Prefer' => 'return=minimal',
+            ],
+            'body' => json_encode([
+                'project_id' => $project_id,
+                'plugin_name' => $plugin_name,
+                'registered_domain' => $domain,
+            ]),
+        ]);
+    }
+
+    return true;
 }
 
 function supercraft_save_embed_code() {
@@ -1692,19 +1747,6 @@ function supercraft_daily_validation_event() {
     }
 }
 add_action('supercraft_daily_validation', 'supercraft_daily_validation_event');
-
-/**
- * Check if plugin is validated before enabling features
- */
-function supercraft_is_validated() {
-    // Skip check if no config (dev mode)
-    if (!defined('SUPERCRAFT_SUPABASE_URL')) {
-        return true;
-    }
-
-    $status = supercraft_get_validation_status();
-    return $status === 'valid';
-}
 
 // Show admin notice if not validated
 function supercraft_admin_notice() {
