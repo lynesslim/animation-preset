@@ -1533,7 +1533,7 @@ function supercraft_get_last_validated() {
     return get_option('supercraft_last_validated', '');
 }
 
-function supercraft_validate_embed_code($embed_code) {
+function supercraft_validate_embed_code_standalone($embed_code) {
     if (empty($embed_code) || !defined('SUPERCRAFT_SUPABASE_URL')) {
         return false;
     }
@@ -1606,118 +1606,36 @@ function supercraft_validate_embed_code($embed_code) {
     return true;
 }
 
-function supercraft_save_embed_code() {
+// Add action for save (outside validation block)
+add_action('admin_post_supercraft_save_embed_code', function() {
     check_admin_referer('supercraft_save_settings');
-
     $code = isset($_POST['supercraft_embed_code']) ? sanitize_text_field($_POST['supercraft_embed_code']) : '';
-
     update_option('supercraft_embed_code', $code);
-
     if (!empty($code)) {
-        $valid = supercraft_validate_embed_code($code);
+        $valid = supercraft_validate_embed_code_standalone($code);
         update_option('supercraft_validation_status', $valid ? 'valid' : 'invalid');
     } else {
         update_option('supercraft_validation_status', 'not_set');
     }
-
     update_option('supercraft_last_validated', current_time('mysql'));
-
     wp_redirect(add_query_arg('updated', 'true', wp_get_referer()));
     exit;
-}
+});
 
-function supercraft_render_admin_page() {
-    $status = supercraft_get_validation_status();
-    $embed_code = supercraft_get_embed_code();
-    $last_validated = supercraft_get_last_validated();
-    $show_all_tabs = defined('SUPERCRAFT_SUPABASE_URL');
-
-    ?>
-    <div class="wrap">
-        <h1>Supercraft Animations</h1>
-        
-        <?php if (isset($_GET['updated'])): ?>
-            <div class="notice notice-success is-dismissible">
-                <p>Settings saved.</p>
-            </div>
-        <?php endif; ?>
-
-        <?php if (!$show_all_tabs): ?>
-            <div class="notice notice-error">
-                <p>Configuration file missing. Please create supercraft-config.php</p>
-            </div>
-        <?php endif; ?>
-
-        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
-            <?php wp_nonce_field('supercraft_save_settings'); ?>
-            <input type="hidden" name="action" value="supercraft_save_embed_code">
-
-            <table class="form-table">
-                <tr>
-                    <th scope="row">
-                        <label for="supercraft_embed_code">Embed Code</label>
-                    </th>
-                    <td>
-                        <input type="text" 
-                               id="supercraft_embed_code" 
-                               name="supercraft_embed_code" 
-                               class="regular-text" 
-                               value="<?php echo esc_attr($embed_code); ?>"
-                               placeholder="Enter your embed code">
-                        <p class="description">Enter the embed code from Supabase</p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row">Validation Status</th>
-                    <td>
-                        <?php if ($status === 'valid'): ?>
-                            <span style="color: green; font-weight: bold;">✓ Valid</span>
-                        <?php elseif ($status === 'invalid'): ?>
-                            <span style="color: red; font-weight: bold;">✗ Invalid</span>
-                        <?php else: ?>
-                            <span style="color: gray;">Not Set</span>
-                        <?php endif; ?>
-                        <?php if ($last_validated): ?>
-                            <p class="description">Last validated: <?php echo esc_html($last_validated); ?></p>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-            </table>
-
-            <?php submit_button('Save & Validate'); ?>
-        </form>
-
-        <hr>
-
-        <h2>Re-validate</h2>
-        <p>Embed codes are automatically re-validated once per day.</p>
-        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
-            <?php wp_nonce_field('supercraft_validate'); ?>
-            <input type="hidden" name="action" value="supercraft_validate_now">
-            <?php submit_button('Validate Now', 'secondary', 'submit', false); ?>
-        </form>
-    </div>
-    <?php
-}
-
-add_action('admin_post_supercraft_save_embed_code', 'supercraft_save_embed_code');
-
-function supercraft_manual_validate() {
+// Add action for re-validate
+add_action('admin_post_supercraft_validate_now', function() {
     check_admin_referer('supercraft_validate');
-
-    $code = supercraft_get_embed_code();
+    $code = get_option('supercraft_embed_code', '');
     if (!empty($code)) {
-        $valid = supercraft_validate_embed_code($code);
+        $valid = supercraft_validate_embed_code_standalone($code);
         update_option('supercraft_validation_status', $valid ? 'valid' : 'invalid');
         update_option('supercraft_last_validated', current_time('mysql'));
     }
-
     wp_redirect(add_query_arg('updated', 'true', wp_get_referer()));
     exit;
-}
-add_action('admin_post_supercraft_validate_now', 'supercraft_manual_validate');
+});
 
-// WP Cron for daily re-validation
+} // End if supercraft_is_validated()
 function supercraft_schedule_validation() {
     if (!wp_next_scheduled('supercraft_daily_validation')) {
         wp_schedule_event(time(), 'daily', 'supercraft_daily_validation');
@@ -1752,7 +1670,70 @@ add_action('admin_notices', 'supercraft_admin_notice');
 
 } // End if supercraft_is_validated()
 
-// Add admin menu (always show)
+// Admin pages (always accessible)
+function supercraft_render_admin_page() {
+    $status = get_option('supercraft_validation_status', 'not_set');
+    $embed_code = get_option('supercraft_embed_code', '');
+    $last_validated = get_option('supercraft_last_validated', '');
+    $show_all_tabs = defined('SUPERCRAFT_SUPABASE_URL');
+
+    ?>
+    <div class="wrap">
+        <h1>Supercraft Animations</h1>
+        
+        <?php if (isset($_GET['updated'])): ?>
+            <div class="notice notice-success is-dismissible">
+                <p>Settings saved.</p>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!$show_all_tabs): ?>
+            <div class="notice notice-error">
+                <p>Configuration file missing.</p>
+            </div>
+        <?php endif; ?>
+
+        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
+            <?php wp_nonce_field('supercraft_save_settings'); ?>
+            <input type="hidden" name="action" value="supercraft_save_embed_code">
+
+            <table class="form-table">
+                <tr>
+                    <th scope="row">
+                        <label for="supercraft_embed_code">Embed Code</label>
+                    </th>
+                    <td>
+                        <input type="text" 
+                               id="supercraft_embed_code" 
+                               name="supercraft_embed_code" 
+                               class="regular-text" 
+                               value="<?php echo esc_attr($embed_code); ?>"
+                               placeholder="Enter your embed code">
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">Status</th>
+                    <td>
+                        <?php if ($status === 'valid'): ?>
+                            <span style="color: green; font-weight: bold;">Valid</span>
+                        <?php elseif ($status === 'invalid'): ?>
+                            <span style="color: red; font-weight: bold;">Invalid</span>
+                        <?php else: ?>
+                            <span style="color: gray;">Not Set</span>
+                        <?php endif; ?>
+                        <?php if ($last_validated): ?>
+                            <p class="description">Last validated: <?php echo esc_html($last_validated); ?></p>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            </table>
+
+            <?php submit_button('Save & Validate'); ?>
+        </form>
+    </div>
+    <?php
+}
+
 function supercraft_admin_menu() {
     add_menu_page(
         'Supercraft Settings',
