@@ -1,0 +1,17 @@
+{
+  "name": "supercraft-animation-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local WordPress testing setup for the Superanimate GSAP Elementor plugin.",
+  "scripts": {
+    "wp:start": "wp-env start",
+    "wp:stop": "wp-env stop",
+    "wp:reset": "wp-env clean all",
+    "wp:destroy": "wp-env destroy",
+    "wp:cli": "wp-env run cli wp",
+    "wp:logs": "wp-env logs"
+  },
+  "devDependencies": {
+    "@wordpress/env": "^10.17.0"
+  }
+}
