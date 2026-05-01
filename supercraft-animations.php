@@ -1054,52 +1054,54 @@ add_action('elementor/element/container/section_advanced/after_section_end', $su
 
 // Only register icon controls if validated (dev mode always allowed)
 if (supercraft_is_validated()) {
-add_action('elementor/editor/after_enqueue_scripts', function () {
-    $icon_url = plugins_url('favicon.webp', __FILE__);
-    $css = "
+
+    // Add custom icon for Superanimate section in Elementor panel
+    add_action('elementor/editor/after_enqueue_scripts', function () {
+        $icon_url = plugins_url('favicon.webp', __FILE__);
+        $css = '
     .elementor-panel .elementor-control-section_supercraft_anim_section .elementor-panel-heading .elementor-panel-heading-title:before {
-        content: '';
+        content: "";
         display: inline-block;
         width: 1em;
         height: 1em;
         margin-right: 6px;
-        background: url('{$icon_url}') center center / contain no-repeat;
+        background: url(' . $icon_url . ') center center / contain no-repeat;
         vertical-align: middle;
-    }";
-    // Attach inline style to an existing editor handle
-    wp_register_style('superanimate-editor-icon', false);
-    wp_enqueue_style('superanimate-editor-icon');
-    wp_add_inline_style('superanimate-editor-icon', $css);
-});
+    }';
+        // Attach inline style to an existing editor handle
+        wp_register_style('superanimate-editor-icon', false);
+        wp_enqueue_style('superanimate-editor-icon');
+        wp_add_inline_style('superanimate-editor-icon', $css);
+    });
 
-// Apply classes/data attributes on render
-function supercraft_apply_attrs($element) {
-    // Prefer raw settings; fallback to display; final fallback to element data (editor mode)
-    $settings = method_exists($element, 'get_settings') ? $element->get_settings() : $element->get_settings_for_display();
-    if (empty($settings) && method_exists($element, 'get_data')) {
-        $data = $element->get_data();
-        if (!empty($data['settings']) && is_array($data['settings'])) {
-            $settings = $data['settings'];
+    // Apply classes/data attributes on render
+    function supercraft_apply_attrs($element) {
+        // Prefer raw settings; fallback to display; final fallback to element data (editor mode)
+        $settings = method_exists($element, 'get_settings') ? $element->get_settings() : $element->get_settings_for_display();
+        if (empty($settings) && method_exists($element, 'get_data')) {
+            $data = $element->get_data();
+            if (!empty($data['settings']) && is_array($data['settings'])) {
+                $settings = $data['settings'];
+            }
         }
-    }
-    $cat = $settings['supercraft_anim_category'] ?? '';
-    if (!$cat) {
-        return;
-    }
-
-    $classes = [];
-    $styles = [];
-    $data = [];
-
-    // Preview flags
-    if (!empty($settings['supercraft_preview_play'])) {
-        $data['data-supercraft-preview-play'] = 'yes';
-    }
-    if ($cat === 'scroll-transform' && ($settings['supercraft_scroll_preset'] ?? '') === 'custom') {
-        if (!empty($settings['supercraft_preview_state'])) {
-            $data['data-preview-state'] = $settings['supercraft_preview_state'];
+        $cat = $settings['supercraft_anim_category'] ?? '';
+        if (!$cat) {
+            return;
         }
-    }
+
+        $classes = [];
+        $styles = [];
+        $data_attrs = [];
+
+        // Preview flags
+        if (!empty($settings['supercraft_preview_play'])) {
+            $data_attrs['data-supercraft-preview-play'] = 'yes';
+        }
+        if ($cat === 'scroll-transform' && ($settings['supercraft_scroll_preset'] ?? '') === 'custom') {
+            if (!empty($settings['supercraft_preview_state'])) {
+                $data_attrs['data-preview-state'] = $settings['supercraft_preview_state'];
+            }
+        }
 
     switch ($cat) {
         case 'scroll-transform':
