@@ -1,11 +1,6 @@
 // Shared helpers to track the currently selected widget across editor/preview contexts
 const getActiveView = () => window.__supercraftActiveView || null;
 const setActiveView = (view) => { window.__supercraftActiveView = view; };
-const supercraftDebugLog = (...args) => {
-  if (window.SUPERCRAFT_ANIM_DEBUG) {
-    console.log(...args);
-  }
-};
 
 // Track timeouts that reapply start-state after play, so we can cancel on deselect
 const startResetTimers = new Map();
@@ -551,7 +546,7 @@ function applyStartStateFromStyles(el) {
       $el.attr('style', combinedStyle);
     }
 
-    supercraftDebugLog('Applied classes and styles:', $el.attr('class'), $el.attr('style'));
+    console.log('Applied classes and styles:', $el.attr('class'), $el.attr('style'));
   }
 
   // Apply static start/end state for custom non-scrub scroll transforms (preview/reset helper)
@@ -764,7 +759,7 @@ function applyStartStateFromStyles(el) {
     }, 500);
   });
 
-  supercraftDebugLog('Supercraft editor class applier loaded');
+  console.log('Supercraft editor class applier loaded');
 })();
 
   // Play button handler: replay non-scrub animations in preview
@@ -777,7 +772,7 @@ function applyStartStateFromStyles(el) {
       console.warn('supercraft play: preview iframe not found, skipping play');
       return;
     }
-    supercraftDebugLog('supercraft play: panel button click -> posting to preview');
+    console.log('supercraft play: panel button click -> posting to preview');
     iframe.contentWindow.postMessage({ type: 'supercraft_preview_play' }, '*');
   });
 
@@ -785,7 +780,7 @@ function applyStartStateFromStyles(el) {
     if (!e || !e.data || e.data.type !== 'supercraft_preview_play') return;
     // Only handle in the preview frame, not in the panel
     if (window === window.top) return;
-    supercraftDebugLog('supercraft play: postMessage received, replaying');
+    console.log('supercraft play: postMessage received, replaying');
 
     // Reapply latest classes/styles for the active widget before replaying
     const activeView = getActiveView();

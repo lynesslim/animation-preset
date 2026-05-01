@@ -257,21 +257,21 @@ body:not(.elementor-editor-active) .whitespace {
 /* ================================
    FADE UP (frontend only)
 =================================== */
-body.supercraft-anim-runtime-ready:not(.elementor-editor-active) .anim-fade-up {
+body:not(.elementor-editor-active) .anim-fade-up {
   opacity: 0;
   transform: translateY(20px);
 }
 
 /* Prevent initial flash before JS applies start states (live site only) */
-body.supercraft-anim-runtime-ready:not(.elementor-editor-active) .scroll-transform,
-body.supercraft-anim-runtime-ready:not(.elementor-editor-active) .scroll-transform-scrub,
-body.supercraft-anim-runtime-ready:not(.elementor-editor-active) .image-reveal,
-body.supercraft-anim-runtime-ready:not(.elementor-editor-active) .container-reveal {
+.scroll-transform,
+.scroll-transform-scrub,
+.image-reveal,
+.container-reveal {
   opacity: 0;
 }
 
 /* Prevent split-text flash before JS split/init on live site */
-body.supercraft-anim-split-ready:not(.elementor-editor-active) [class*="split-text-"]:not([data-anim-init="true"]) {
+body:not(.elementor-editor-active) [class*="split-text-"]:not([data-anim-init="true"]) {
   opacity: 0;
 }
 
@@ -279,7 +279,7 @@ body.supercraft-anim-split-ready:not(.elementor-editor-active) [class*="split-te
    BLUR REVEAL (frontend only)
    - We only hide it on live site, not in editor
 =================================== */
-body.supercraft-anim-runtime-ready:not(.elementor-editor-active) .blur-reveal {
+body:not(.elementor-editor-active) .blur-reveal {
   --animation-delay: 0s;
   --animation-duration: 1.5s;
   --move-distance: -20px;
@@ -545,7 +545,7 @@ body.supercraft-anim-runtime-ready:not(.elementor-editor-active) .blur-reveal {
   --reveal-direction: left; /* default direction */
 }
 
-body.supercraft-anim-runtime-ready:not(.elementor-editor-active) .image-reveal {
+body:not(.elementor-editor-active) .image-reveal {
   --reveal-duration: 1.5s;
   --reveal-delay: 0s;
   --reveal-ease: power2.out;
@@ -557,7 +557,7 @@ body.supercraft-anim-runtime-ready:not(.elementor-editor-active) .image-reveal {
   overflow: hidden;
 }
 
-body.supercraft-anim-runtime-ready:not(.elementor-editor-active) .image-reveal img {
+body:not(.elementor-editor-active) .image-reveal img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -602,8 +602,8 @@ body.supercraft-anim-runtime-ready:not(.elementor-editor-active) .image-reveal i
   --reveal-scroll-end: top 20%;
 }
 
-body.supercraft-anim-runtime-ready:not(.elementor-editor-active) .container-reveal,
-body.supercraft-anim-runtime-ready:not(.elementor-editor-active) .container-reveal-scroll {
+body:not(.elementor-editor-active) .container-reveal,
+body:not(.elementor-editor-active) .container-reveal-scroll {
   visibility: hidden; /* hide until JS sets */
 }
 
