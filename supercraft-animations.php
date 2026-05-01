@@ -256,7 +256,8 @@ $supercraft_controls_callback = function ($element, $section_id) {
             'event' => 'supercraft_preview_play',
             'frontend_available' => false,
             'condition' => [
-                'supercraft_anim_category!' => ['', 'container-reveal'],
+                'supercraft_anim_category!' => '',
+                'supercraft_anim_category!' => 'container-reveal',
                 'supercraft_scroll_scrub!' => 'yes',
                 'supercraft_split_scrub!' => 'yes',
                 'supercraft_container_scrub!' => 'yes',
@@ -661,8 +662,6 @@ $supercraft_controls_callback = function ($element, $section_id) {
         'duration' => __('Duration (s)', 'supercraft-anim'),
         'opacity_start' => __('Opacity Start', 'supercraft-anim'),
         'blur_start' => __('Blur Start (px)', 'supercraft-anim'),
-        'scroll_start' => __('Scroll Start', 'supercraft-anim'),
-        'scroll_end' => __('Scroll End', 'supercraft-anim'),
     ];
     foreach ($split_custom as $key => $label) {
         $element->add_control(
@@ -1058,10 +1057,6 @@ add_action('elementor/editor/after_enqueue_scripts', function () {
 });
 
 // Apply classes/data attributes on render
-function supercraft_get_setting($settings, $key, $default = '') {
-    return is_array($settings) && array_key_exists($key, $settings) ? $settings[$key] : $default;
-}
-
 function supercraft_apply_attrs($element) {
     // Prefer raw settings; fallback to display; final fallback to element data (editor mode)
     $settings = method_exists($element, 'get_settings') ? $element->get_settings() : $element->get_settings_for_display();
@@ -1071,7 +1066,7 @@ function supercraft_apply_attrs($element) {
             $settings = $data['settings'];
         }
     }
-    $cat = supercraft_get_setting($settings, 'supercraft_anim_category', '');
+    $cat = $settings['supercraft_anim_category'] ?? '';
     if (!$cat) {
         return;
     }
@@ -1081,20 +1076,20 @@ function supercraft_apply_attrs($element) {
     $data = [];
 
     // Preview flags
-    if (!empty(supercraft_get_setting($settings, 'supercraft_preview_play'))) {
+    if (!empty($settings['supercraft_preview_play'])) {
         $data['data-supercraft-preview-play'] = 'yes';
     }
-    if ($cat === 'scroll-transform' && supercraft_get_setting($settings, 'supercraft_scroll_preset', '') === 'custom') {
-        if (!empty(supercraft_get_setting($settings, 'supercraft_preview_state'))) {
-            $data['data-preview-state'] = supercraft_get_setting($settings, 'supercraft_preview_state');
+    if ($cat === 'scroll-transform' && ($settings['supercraft_scroll_preset'] ?? '') === 'custom') {
+        if (!empty($settings['supercraft_preview_state'])) {
+            $data['data-preview-state'] = $settings['supercraft_preview_state'];
         }
     }
 
     switch ($cat) {
         case 'scroll-transform':
-            $isScrub = !empty(supercraft_get_setting($settings, 'supercraft_scroll_scrub'));
+            $isScrub = !empty($settings['supercraft_scroll_scrub']);
             $classes[] = $isScrub ? 'scroll-transform-scrub' : 'scroll-transform';
-            $preset = supercraft_get_setting($settings, 'supercraft_scroll_preset', 'fade-up');
+            $preset = $settings['supercraft_scroll_preset'] ?? 'fade-up';
             if ($preset && $preset !== 'custom') {
                 $classes[] = $preset;
                 // Ensure preset values are applied inline for reliability (scrub + non-scrub)
@@ -1196,30 +1191,30 @@ function supercraft_apply_attrs($element) {
                     }
                 }
                 if ($isScrub) {
-                    if (!empty(supercraft_get_setting($settings, 'supercraft_scrub_start'))) {
-                        $styles[] = '--transform-scroll-start:' . esc_attr(supercraft_get_setting($settings, 'supercraft_scrub_start'));
+                    if (!empty($settings['supercraft_scrub_start'])) {
+                        $styles[] = '--transform-scroll-start:' . esc_attr($settings['supercraft_scrub_start']);
                     }
-                    if (!empty(supercraft_get_setting($settings, 'supercraft_scrub_end'))) {
-                        $styles[] = '--transform-scroll-end:' . esc_attr(supercraft_get_setting($settings, 'supercraft_scrub_end'));
+                    if (!empty($settings['supercraft_scrub_end'])) {
+                        $styles[] = '--transform-scroll-end:' . esc_attr($settings['supercraft_scrub_end']);
                     }
-                    if (!empty(supercraft_get_setting($settings, 'supercraft_scrub_ease'))) {
-                        $styles[] = '--transform-ease:' . esc_attr(supercraft_get_setting($settings, 'supercraft_scrub_ease'));
+                    if (!empty($settings['supercraft_scrub_ease'])) {
+                        $styles[] = '--transform-ease:' . esc_attr($settings['supercraft_scrub_ease']);
                     }
-                    if (!empty(supercraft_get_setting($settings, 'supercraft_scrub_forward'))) {
+                    if (!empty($settings['supercraft_scrub_forward'])) {
                         $data['data-transform-forward-only'] = 'true';
                     }
                 } else {
-                if (!empty(supercraft_get_setting($settings, 'supercraft_trigger'))) {
-                    $styles[] = '--transform-trigger:' . esc_attr(supercraft_get_setting($settings, 'supercraft_trigger'));
+                if (!empty($settings['supercraft_trigger'])) {
+                    $styles[] = '--transform-trigger:' . esc_attr($settings['supercraft_trigger']);
                 }
-                if (supercraft_get_setting($settings, 'supercraft_preset_duration', '') !== '' && supercraft_get_setting($settings, 'supercraft_preset_duration', null) !== null) {
-                    $styles[] = '--transform-duration:' . esc_attr(supercraft_get_setting($settings, 'supercraft_preset_duration')) . 's';
+                if ($settings['supercraft_preset_duration'] !== '' && $settings['supercraft_preset_duration'] !== null) {
+                    $styles[] = '--transform-duration:' . esc_attr($settings['supercraft_preset_duration']) . 's';
                 }
-                if (supercraft_get_setting($settings, 'supercraft_delay', '') !== '' && supercraft_get_setting($settings, 'supercraft_delay', null) !== null) {
-                    $styles[] = '--transform-delay:' . esc_attr(supercraft_get_setting($settings, 'supercraft_delay')) . 's';
+                if ($settings['supercraft_delay'] !== '' && $settings['supercraft_delay'] !== null) {
+                    $styles[] = '--transform-delay:' . esc_attr($settings['supercraft_delay']) . 's';
                 }
-                if (!empty(supercraft_get_setting($settings, 'supercraft_ease'))) {
-                    $styles[] = '--transform-ease:' . esc_attr(supercraft_get_setting($settings, 'supercraft_ease'));
+                if (!empty($settings['supercraft_ease'])) {
+                    $styles[] = '--transform-ease:' . esc_attr($settings['supercraft_ease']);
                     }
                 }
             } else {
@@ -1243,9 +1238,8 @@ function supercraft_apply_attrs($element) {
                     'supercraft_ct_trigger' => '--transform-trigger',
                 ];
                 foreach ($map as $key => $var) {
-                    $setting_value = supercraft_get_setting($settings, $key, null);
-                    if ($setting_value !== '' && $setting_value !== null) {
-                        $val = $setting_value;
+                    if ($settings[$key] !== '' && $settings[$key] !== null) {
+                        $val = $settings[$key];
                         if (strpos($key, 'delay') !== false || strpos($key, 'duration') !== false) {
                             $val .= 's';
                         } elseif (strpos($key, 'rotate') !== false) {
@@ -1266,20 +1260,20 @@ function supercraft_apply_attrs($element) {
                     }
                 }
                 // Default start opacity to 1 for custom transforms if left blank
-                if (supercraft_get_setting($settings, 'supercraft_ct_start_opacity', null) === '' || supercraft_get_setting($settings, 'supercraft_ct_start_opacity', null) === null) {
+                if (!isset($settings['supercraft_ct_start_opacity']) || $settings['supercraft_ct_start_opacity'] === '' || $settings['supercraft_ct_start_opacity'] === null) {
                     $styles[] = '--transform-start-opacity:1';
                 }
                 if ($isScrub) {
-                    if (!empty(supercraft_get_setting($settings, 'supercraft_scrub_start'))) {
-                        $styles[] = '--transform-scroll-start:' . esc_attr(supercraft_get_setting($settings, 'supercraft_scrub_start'));
+                    if (!empty($settings['supercraft_scrub_start'])) {
+                        $styles[] = '--transform-scroll-start:' . esc_attr($settings['supercraft_scrub_start']);
                     }
-                    if (!empty(supercraft_get_setting($settings, 'supercraft_scrub_end'))) {
-                        $styles[] = '--transform-scroll-end:' . esc_attr(supercraft_get_setting($settings, 'supercraft_scrub_end'));
+                    if (!empty($settings['supercraft_scrub_end'])) {
+                        $styles[] = '--transform-scroll-end:' . esc_attr($settings['supercraft_scrub_end']);
                     }
-                    if (!empty(supercraft_get_setting($settings, 'supercraft_scrub_ease'))) {
-                        $styles[] = '--transform-ease:' . esc_attr(supercraft_get_setting($settings, 'supercraft_scrub_ease'));
+                    if (!empty($settings['supercraft_scrub_ease'])) {
+                        $styles[] = '--transform-ease:' . esc_attr($settings['supercraft_scrub_ease']);
                     }
-                    if (!empty(supercraft_get_setting($settings, 'supercraft_scrub_forward'))) {
+                    if (!empty($settings['supercraft_scrub_forward'])) {
                         $data['data-transform-forward-only'] = 'true';
                     }
                 }
@@ -1287,13 +1281,13 @@ function supercraft_apply_attrs($element) {
             break;
 
         case 'split-text':
-            $mode = supercraft_get_setting($settings, 'supercraft_split_mode', 'chars');
+            $mode = $settings['supercraft_split_mode'] ?? 'chars';
             // Fallback to legacy variant if present
             $variant = $mode === 'words'
-                ? supercraft_get_setting($settings, 'supercraft_split_variant_word', supercraft_get_setting($settings, 'supercraft_split_variant', 'fade-x'))
-                : supercraft_get_setting($settings, 'supercraft_split_variant_char', supercraft_get_setting($settings, 'supercraft_split_variant', 'fade-x'));
-            $preset = supercraft_get_setting($settings, 'supercraft_split_preset', 'medium');
-            $isScrubSplit = !empty(supercraft_get_setting($settings, 'supercraft_split_scrub'));
+                ? ($settings['supercraft_split_variant_word'] ?? ($settings['supercraft_split_variant'] ?? 'fade-x'))
+                : ($settings['supercraft_split_variant_char'] ?? ($settings['supercraft_split_variant'] ?? 'fade-x'));
+            $preset = $settings['supercraft_split_preset'] ?? 'medium';
+            $isScrubSplit = !empty($settings['supercraft_split_scrub']);
             // Preset mappings
             if ($preset !== 'custom') {
                 $isWord = ($mode === 'words');
@@ -1316,14 +1310,14 @@ function supercraft_apply_attrs($element) {
                     $styles[] = ($isWord ? '--word-blur-start' : '--char-blur-start') . ':' . $blurDefault . 'px';
                 }
                 if ($isScrubSplit) {
-                    $styles[] = ($isWord ? '--word-scroll-start' : '--char-scroll-start') . ':' . (!empty(supercraft_get_setting($settings, 'supercraft_split_scroll_start')) ? esc_attr(supercraft_get_setting($settings, 'supercraft_split_scroll_start')) : 'top 85%');
-                    $styles[] = ($isWord ? '--word-scroll-end' : '--char-scroll-end') . ':' . (!empty(supercraft_get_setting($settings, 'supercraft_split_scroll_end')) ? esc_attr(supercraft_get_setting($settings, 'supercraft_split_scroll_end')) : 'top 40%');
-                    if (!empty(supercraft_get_setting($settings, 'supercraft_split_forward'))) {
+                    $styles[] = ($isWord ? '--word-scroll-start' : '--char-scroll-start') . ':' . (!empty($settings['supercraft_split_scroll_start']) ? esc_attr($settings['supercraft_split_scroll_start']) : 'top 85%');
+                    $styles[] = ($isWord ? '--word-scroll-end' : '--char-scroll-end') . ':' . (!empty($settings['supercraft_split_scroll_end']) ? esc_attr($settings['supercraft_split_scroll_end']) : 'top 40%');
+                    if (!empty($settings['supercraft_split_forward'])) {
                         $data['data-split-forward-only'] = 'true';
                     }
                 } else {
-                    if (supercraft_get_setting($settings, 'supercraft_split_delay', '') !== '') {
-                        $styles[] = '--animation-delay:' . esc_attr(supercraft_get_setting($settings, 'supercraft_split_delay')) . 's';
+                    if (isset($settings['supercraft_split_delay']) && $settings['supercraft_split_delay'] !== '') {
+                        $styles[] = '--animation-delay:' . esc_attr($settings['supercraft_split_delay']) . 's';
                     }
                 }
             }
@@ -1353,14 +1347,9 @@ function supercraft_apply_attrs($element) {
                     'supercraft_split_opacity_start' => $mode === 'words' ? '--word-opacity-start' : '--char-opacity-start',
                     'supercraft_split_blur_start' => $mode === 'words' ? '--word-blur-start' : '--char-blur-start',
                 ];
-                if ($isScrubSplit) {
-                    $map['supercraft_split_scroll_start'] = $mode === 'words' ? '--word-scroll-start' : '--char-scroll-start';
-                    $map['supercraft_split_scroll_end'] = $mode === 'words' ? '--word-scroll-end' : '--char-scroll-end';
-                }
                 foreach ($map as $key => $var) {
-                    $setting_value = supercraft_get_setting($settings, $key, null);
-                    if ($setting_value !== '' && $setting_value !== null) {
-                        $val = $setting_value;
+                    if ($settings[$key] !== '' && $settings[$key] !== null) {
+                        $val = $settings[$key];
                         if (strpos($key, 'stagger') !== false || strpos($key, 'duration') !== false) {
                             $val .= 's';
                         } elseif (strpos($key, 'offset') !== false || strpos($key, 'blur') !== false) {
@@ -1369,18 +1358,18 @@ function supercraft_apply_attrs($element) {
                         $styles[] = $var . ':' . esc_attr($val);
                     }
                 }
-                if (!empty(supercraft_get_setting($settings, 'supercraft_split_ease'))) {
-                    $styles[] = ($mode === 'words' ? '--word-ease:' : '--char-ease:') . esc_attr(supercraft_get_setting($settings, 'supercraft_split_ease'));
+                if (!empty($settings['supercraft_split_ease'])) {
+                    $styles[] = ($mode === 'words' ? '--word-ease:' : '--char-ease:') . esc_attr($settings['supercraft_split_ease']);
                 }
                 if ($isScrubSplit) {
-                    $styles[] = ($mode === 'words' ? '--word-scroll-start' : '--char-scroll-start') . ':' . (!empty(supercraft_get_setting($settings, 'supercraft_split_scroll_start')) ? esc_attr(supercraft_get_setting($settings, 'supercraft_split_scroll_start')) : 'top 85%');
-                    $styles[] = ($mode === 'words' ? '--word-scroll-end' : '--char-scroll-end') . ':' . (!empty(supercraft_get_setting($settings, 'supercraft_split_scroll_end')) ? esc_attr(supercraft_get_setting($settings, 'supercraft_split_scroll_end')) : 'top 40%');
-                    if (!empty(supercraft_get_setting($settings, 'supercraft_split_forward'))) {
+                    $styles[] = ($mode === 'words' ? '--word-scroll-start' : '--char-scroll-start') . ':' . (!empty($settings['supercraft_split_scroll_start']) ? esc_attr($settings['supercraft_split_scroll_start']) : 'top 85%');
+                    $styles[] = ($mode === 'words' ? '--word-scroll-end' : '--char-scroll-end') . ':' . (!empty($settings['supercraft_split_scroll_end']) ? esc_attr($settings['supercraft_split_scroll_end']) : 'top 40%');
+                    if (!empty($settings['supercraft_split_forward'])) {
                         $data['data-split-forward-only'] = 'true';
                     }
                 } else {
-                    if (supercraft_get_setting($settings, 'supercraft_split_delay', '') !== '') {
-                        $styles[] = '--animation-delay:' . esc_attr(supercraft_get_setting($settings, 'supercraft_split_delay')) . 's';
+                    if (isset($settings['supercraft_split_delay']) && $settings['supercraft_split_delay'] !== '') {
+                        $styles[] = '--animation-delay:' . esc_attr($settings['supercraft_split_delay']) . 's';
                     }
                 }
             }
@@ -1388,86 +1377,85 @@ function supercraft_apply_attrs($element) {
 
         case 'image-reveal':
             $classes[] = 'image-reveal';
-            $dir = supercraft_get_setting($settings, 'supercraft_image_preset', 'left');
+            $dir = $settings['supercraft_image_preset'] ?? 'left';
             if ($dir === 'custom') {
-                $dir = supercraft_get_setting($settings, 'supercraft_image_direction', 'left');
+                $dir = $settings['supercraft_image_direction'] ?? 'left';
             }
             $classes[] = 'image-reveal-' . $dir;
-            if (supercraft_get_setting($settings, 'supercraft_image_duration', '') !== '' && supercraft_get_setting($settings, 'supercraft_image_duration', null) !== null) {
-                $styles[] = '--reveal-duration:' . esc_attr(supercraft_get_setting($settings, 'supercraft_image_duration')) . 's';
+            if ($settings['supercraft_image_duration'] !== '' && $settings['supercraft_image_duration'] !== null) {
+                $styles[] = '--reveal-duration:' . esc_attr($settings['supercraft_image_duration']) . 's';
             }
-            if (supercraft_get_setting($settings, 'supercraft_image_delay', '') !== '' && supercraft_get_setting($settings, 'supercraft_image_delay', null) !== null) {
-                $styles[] = '--reveal-delay:' . esc_attr(supercraft_get_setting($settings, 'supercraft_image_delay')) . 's';
+            if ($settings['supercraft_image_delay'] !== '' && $settings['supercraft_image_delay'] !== null) {
+                $styles[] = '--reveal-delay:' . esc_attr($settings['supercraft_image_delay']) . 's';
             }
-            if (!empty(supercraft_get_setting($settings, 'supercraft_image_ease'))) {
-                $styles[] = '--reveal-ease:' . esc_attr(supercraft_get_setting($settings, 'supercraft_image_ease'));
+            if (!empty($settings['supercraft_image_ease'])) {
+                $styles[] = '--reveal-ease:' . esc_attr($settings['supercraft_image_ease']);
             }
-            if (!empty(supercraft_get_setting($settings, 'supercraft_image_trigger'))) {
-                $styles[] = '--reveal-trigger:' . esc_attr(supercraft_get_setting($settings, 'supercraft_image_trigger'));
+            if (!empty($settings['supercraft_image_trigger'])) {
+                $styles[] = '--reveal-trigger:' . esc_attr($settings['supercraft_image_trigger']);
             }
-            if (supercraft_get_setting($settings, 'supercraft_image_scale', '') !== '' && supercraft_get_setting($settings, 'supercraft_image_scale', null) !== null) {
-                $styles[] = '--reveal-image-scale:' . esc_attr(supercraft_get_setting($settings, 'supercraft_image_scale'));
+            if ($settings['supercraft_image_scale'] !== '' && $settings['supercraft_image_scale'] !== null) {
+                $styles[] = '--reveal-image-scale:' . esc_attr($settings['supercraft_image_scale']);
             }
             break;
 
         case 'container-reveal':
-            $isContainerScrub = !empty(supercraft_get_setting($settings, 'supercraft_container_scrub'));
+            $isContainerScrub = !empty($settings['supercraft_container_scrub']);
             $classes[] = $isContainerScrub ? 'container-reveal-scroll' : 'container-reveal';
-            $dir = supercraft_get_setting($settings, 'supercraft_container_preset', 'center');
+            $dir = $settings['supercraft_container_preset'] ?? 'center';
             if ($dir === 'custom') {
-                $dir = supercraft_get_setting($settings, 'supercraft_container_direction', 'center');
+                $dir = $settings['supercraft_container_direction'] ?? 'center';
             }
             $classes[] = 'container-reveal-' . $dir;
-            if (supercraft_get_setting($settings, 'supercraft_container_duration', '') !== '' && supercraft_get_setting($settings, 'supercraft_container_duration', null) !== null) {
-                $styles[] = '--reveal-duration:' . esc_attr(supercraft_get_setting($settings, 'supercraft_container_duration')) . 's';
+            if ($settings['supercraft_container_duration'] !== '' && $settings['supercraft_container_duration'] !== null) {
+                $styles[] = '--reveal-duration:' . esc_attr($settings['supercraft_container_duration']) . 's';
             }
-            if (supercraft_get_setting($settings, 'supercraft_container_delay', '') !== '' && supercraft_get_setting($settings, 'supercraft_container_delay', null) !== null) {
-                $styles[] = '--animation-delay:' . esc_attr(supercraft_get_setting($settings, 'supercraft_container_delay')) . 's';
+            if ($settings['supercraft_container_delay'] !== '' && $settings['supercraft_container_delay'] !== null) {
+                $styles[] = '--animation-delay:' . esc_attr($settings['supercraft_container_delay']) . 's';
             }
-            if (!empty(supercraft_get_setting($settings, 'supercraft_container_ease'))) {
-                $styles[] = '--reveal-ease:' . esc_attr(supercraft_get_setting($settings, 'supercraft_container_ease'));
+            if (!empty($settings['supercraft_container_ease'])) {
+                $styles[] = '--reveal-ease:' . esc_attr($settings['supercraft_container_ease']);
             }
             if ($isContainerScrub) {
-                if (!empty(supercraft_get_setting($settings, 'supercraft_container_scroll_start'))) {
-                    $styles[] = '--reveal-scroll-start:' . esc_attr(supercraft_get_setting($settings, 'supercraft_container_scroll_start'));
+                if (!empty($settings['supercraft_container_scroll_start'])) {
+                    $styles[] = '--reveal-scroll-start:' . esc_attr($settings['supercraft_container_scroll_start']);
                 }
-                if (!empty(supercraft_get_setting($settings, 'supercraft_container_scroll_end'))) {
-                    $styles[] = '--reveal-scroll-end:' . esc_attr(supercraft_get_setting($settings, 'supercraft_container_scroll_end'));
+                if (!empty($settings['supercraft_container_scroll_end'])) {
+                    $styles[] = '--reveal-scroll-end:' . esc_attr($settings['supercraft_container_scroll_end']);
                 }
-                if (!empty(supercraft_get_setting($settings, 'supercraft_container_forward'))) {
+                if (!empty($settings['supercraft_container_forward'])) {
                     $data['data-reveal-forward-only'] = 'true';
                 }
             } else {
-                if (!empty(supercraft_get_setting($settings, 'supercraft_container_trigger'))) {
-                    $styles[] = '--reveal-trigger:' . esc_attr(supercraft_get_setting($settings, 'supercraft_container_trigger'));
+                if (!empty($settings['supercraft_container_trigger'])) {
+                    $styles[] = '--reveal-trigger:' . esc_attr($settings['supercraft_container_trigger']);
                 }
             }
             break;
 
         case 'scroll-fill-text':
             $classes[] = 'scroll-fill-text';
-            if (!empty(supercraft_get_setting($settings, 'supercraft_fill_start'))) {
-                $styles[] = '--scroll-fill-start:' . esc_attr(supercraft_get_setting($settings, 'supercraft_fill_start'));
-                $data['data-scroll-fill-start'] = esc_attr(supercraft_get_setting($settings, 'supercraft_fill_start'));
+            if (!empty($settings['supercraft_fill_start'])) {
+                $styles[] = '--scroll-fill-start:' . esc_attr($settings['supercraft_fill_start']);
+                $data['data-scroll-fill-start'] = esc_attr($settings['supercraft_fill_start']);
             }
-            if (!empty(supercraft_get_setting($settings, 'supercraft_fill_end'))) {
-                $styles[] = '--scroll-fill-end:' . esc_attr(supercraft_get_setting($settings, 'supercraft_fill_end'));
-                $data['data-scroll-fill-end'] = esc_attr(supercraft_get_setting($settings, 'supercraft_fill_end'));
+            if (!empty($settings['supercraft_fill_end'])) {
+                $styles[] = '--scroll-fill-end:' . esc_attr($settings['supercraft_fill_end']);
+                $data['data-scroll-fill-end'] = esc_attr($settings['supercraft_fill_end']);
             }
             // Resolve base color (supports Elementor globals)
             $baseColor = '';
-            if (!empty(supercraft_get_setting($settings, 'supercraft_fill_base'))) {
-                $baseColor = supercraft_normalize_color(supercraft_get_setting($settings, 'supercraft_fill_base'));
+            if (!empty($settings['supercraft_fill_base'])) {
+                $baseColor = supercraft_normalize_color($settings['supercraft_fill_base']);
             }
-            $globals = supercraft_get_setting($settings, '__globals__', []);
-            if (empty($baseColor) && is_array($globals) && !empty($globals['supercraft_fill_base'])) {
-                $baseColor = supercraft_global_css_var($globals['supercraft_fill_base']);
+            if (empty($baseColor) && !empty($settings['__globals__']['supercraft_fill_base'])) {
+                $baseColor = supercraft_global_css_var($settings['__globals__']['supercraft_fill_base']);
             }
             if (!empty($baseColor)) {
                 $styles[] = '--scroll-fill-base:' . esc_attr($baseColor);
                 $data['data-scroll-fill-base'] = esc_attr($baseColor);
             }
-            if (!empty(supercraft_get_setting($settings, 'supercraft_fill_line'))) {
+            if (!empty($settings['supercraft_fill_line'])) {
                 $data['data-scroll-fill-line'] = 'yes';
             }
             break;

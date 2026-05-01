@@ -7,12 +7,8 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   if (window.ScrollTrigger) {
     gsap.registerPlugin(ScrollTrigger);
-    document.body.classList.add('supercraft-anim-runtime-ready');
   } else {
     console.warn('ScrollTrigger not loaded. Scroll-based animations may not work.');
-  }
-  if (typeof window.SplitType === 'function') {
-    document.body.classList.add('supercraft-anim-split-ready');
   }
 
   // Sync GSAP/ScrollTrigger with Lenis smooth scrolling if Lenis is present
