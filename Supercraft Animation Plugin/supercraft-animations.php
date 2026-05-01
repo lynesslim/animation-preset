@@ -1666,8 +1666,6 @@ function supercraft_admin_notice() {
 }
 add_action('admin_notices', 'supercraft_admin_notice');
 
-} // End if supercraft_is_validated()
-
 // Admin pages (always accessible)
 function supercraft_render_admin_page() {
     $status = get_option('supercraft_validation_status', 'not_set');
