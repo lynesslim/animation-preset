@@ -11,52 +11,24 @@ document.addEventListener('DOMContentLoaded', function () {
     console.warn('ScrollTrigger not loaded. Scroll-based animations may not work.');
   }
 
-  // Sync GSAP/ScrollTrigger with Lenis smooth scrolling if Lenis is present
-  (function syncLenis() {
-    if (!window.ScrollTrigger) return;
-
-    // If Lenis constructor exists but no instance yet, create one and expose it.
+  // Lenis smooth scrolling - runs separate from ScrollTrigger
+  function initLenis() {
     if (!window.lenis && window.Lenis) {
-      window.lenis = new window.Lenis({ lerp: 0.1, duration: 1.2 });
+      window.lenis = new window.Lenis({ lerp: 0.1, duration: 1.2, smoothWheel: true });
     }
-
     const lenis = window.lenis;
-    if (!lenis) return; // nothing to sync if Lenis not present
-
-    // Keep ScrollTrigger in sync with Lenis scroll updates
-    lenis.on('scroll', ScrollTrigger.update);
-
-    // Drive Lenis with GSAP's ticker (use performance.now() to match Lenis API across versions)
-    gsap.ticker.add(() => {
-      lenis.raf(performance.now());
-    });
-    gsap.ticker.lagSmoothing(0);
-
-    const rootScroller = document.documentElement;
-
-    ScrollTrigger.scrollerProxy(rootScroller, {
-      scrollTop(value) {
-        if (arguments.length) {
-          lenis.scrollTo(value, { immediate: true });
-        }
-        return lenis.scroll || window.scrollY || 0;
-      },
-      getBoundingClientRect() {
-        return {
-          top: 0,
-          left: 0,
-          width: window.innerWidth,
-          height: window.innerHeight,
-        };
-      },
-      pinType: rootScroller.style.transform ? 'transform' : 'fixed',
-    });
-
-    ScrollTrigger.addEventListener('refresh', () => {
-      if (lenis.update) lenis.update();
-    });
-    ScrollTrigger.refresh();
-  })();
+    if (!lenis) return;
+    function frame(time) { lenis.raf(time); requestAnimationFrame(frame); }
+    requestAnimationFrame(frame);
+  }
+  function waitForLenis() {
+    if (window.Lenis && window.supercraftLenisEnabled) {
+      initLenis();
+    } else {
+      setTimeout(waitForLenis, 100);
+    }
+  }
+  waitForLenis();
 
   /* ==========================================
      CORE ANIMATIONS: split-text / blur / fade
@@ -222,7 +194,7 @@ document.addEventListener('DOMContentLoaded', function () {
               trigger: el,
               start: scrollStart,
               end: scrollEnd,
-              scrub: true, // Ties animation to scroll position, reversible
+              scrub: 0, // Ties animation to scroll position, reversible
               onUpdate: (self) => {
                 const forwardOnly = el.dataset.splitForwardOnly === 'true';
                 if (forwardOnly) {
@@ -761,7 +733,7 @@ const scrollEnd = getScrollValue('scrollFillEnd', '--scroll-fill-end', 'top 60%'
           trigger: wrapper, // Use wrapper as trigger for better detection
           start: scrollStart,
           end: scrollEnd,
-          scrub: true,
+          scrub: 0,
         },
       });
       wrapper._scrollFillTrigger = anim && anim.scrollTrigger ? anim.scrollTrigger : null;
@@ -986,7 +958,7 @@ const scrollEnd = getScrollValue('scrollFillEnd', '--scroll-fill-end', 'top 60%'
               trigger: container,
               start: scrollStart,
               end: scrollEnd,
-              scrub: true,
+              scrub: 0,
               onUpdate: (self) => {
                 if (forwardOnly) {
                   const max = Math.max(self.progress, self._maxProgress || 0);
@@ -1114,7 +1086,7 @@ const scrollEnd = getScrollValue('scrollFillEnd', '--scroll-fill-end', 'top 60%'
           trigger: el,
           start: startTrigger,
           end: endTrigger,
-          scrub: true,
+          scrub: 0,
           onUpdate: (self) => {
             if (lockForward) {
               const max = Math.max(self.progress, self._maxProgress || 0);
