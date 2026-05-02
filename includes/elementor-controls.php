@@ -870,6 +870,20 @@ $supercraft_controls_callback = function ($element, $section_id) {
             'label' => __('Line by Line', 'supercraft-anim'),
             'type' => \Elementor\Controls_Manager::SWITCHER,
             'return_value' => 'yes',
+            'default' => 'yes',
+            'frontend_available' => false,
+            'condition' => [
+                'supercraft_anim_category' => 'scroll-fill-text',
+            ],
+        ]
+    );
+
+    $element->add_control(
+        'supercraft_fill_forward',
+        [
+            'label' => __('Forward Only', 'supercraft-anim'),
+            'type' => \Elementor\Controls_Manager::SWITCHER,
+            'return_value' => 'yes',
             'frontend_available' => false,
             'condition' => [
                 'supercraft_anim_category' => 'scroll-fill-text',

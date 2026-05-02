@@ -724,19 +724,99 @@ const getScrollValue = (dataKey, cssVar, fallback) => {
 
 const scrollStart = getScrollValue('scrollFillStart', '--scroll-fill-start', 'top 85%');
 const scrollEnd = getScrollValue('scrollFillEnd', '--scroll-fill-end', 'top 60%');
+const parseBool = (val) => {
+  const t = (val || '').trim().toLowerCase();
+  return t === 'true' || t === '1' || t === 'yes';
+};
+const lockForward = parseBool(wrapperStyles.getPropertyValue('--scroll-fill-forward-only') || wrapper.dataset.scrollFillForwardOnly || 'false');
+const lineByLine = parseBool(wrapper.dataset.scrollFillLine || 'false');
 
-      // Animate both the background-size and text-fill-color on scroll
-      const anim = gsap.to(el, {
-        backgroundSize: '100% 100%, 100% 100%',
-        ease: 'none',
-        scrollTrigger: {
-          trigger: wrapper, // Use wrapper as trigger for better detection
-          start: scrollStart,
-          end: scrollEnd,
-          scrub: 0,
-        },
-      });
-      wrapper._scrollFillTrigger = anim && anim.scrollTrigger ? anim.scrollTrigger : null;
+// LINE BY LINE MODE - Use SplitType to animate each line sequentially
+      if (lineByLine && typeof window.SplitType === 'function') {
+        // Split into lines
+        const split = new SplitType(el, { types: 'lines' });
+
+        if (split.lines && split.lines.length > 0) {
+          // Reset element styles
+          el.style.position = 'relative';
+
+          // Get all lines from SplitType
+          const lines = Array.from(split.lines);
+          const totalLines = lines.length;
+
+          if (totalLines === 0) {
+            // No lines found, fall back to standard mode
+          } else {
+            // Parse scroll values: "top 85%" -> 85, "top 60%" -> 60
+            const parseScrollVal = (val) => {
+              const match = (val || '').match(/(\d+)/);
+              return match ? parseInt(match[1]) : 85;
+            };
+
+            const startVal = parseScrollVal(scrollStart);
+            const endVal = parseScrollVal(scrollEnd);
+            const totalRange = startVal - endVal; // e.g., 85 - 60 = 25
+
+            // Process each line - staggered triggers within the scroll range
+            lines.forEach((lineEl, index) => {
+              // Style the line
+              lineEl.style.display = 'inline';
+              lineEl.style.width = 'auto';
+              lineEl.style.background = `linear-gradient(to right, ${fullColor}, ${fullColor}), linear-gradient(to right, ${dimColor}, ${dimColor})`;
+              lineEl.style.backgroundRepeat = 'no-repeat, no-repeat';
+              lineEl.style.backgroundSize = '0% 100%, 100% 100%';
+              lineEl.style.webkitBackgroundClip = 'text';
+              lineEl.style.backgroundClip = 'text';
+              lineEl.style.webkitTextFillColor = 'transparent';
+              lineEl.style.color = dimColor;
+
+              // Calculate staggered start/end for this line
+              // Line 0: start at scrollStart, end at scrollStart - (1/totalLines * range)
+              // Line 1: start at scrollStart - (1/totalLines * range), end at scrollStart - (2/totalLines * range)
+              const lineDelay = totalRange / totalLines;
+              const lineStart = startVal - (index * lineDelay);
+              const lineEnd = startVal - ((index + 1) * lineDelay);
+
+              const lineStartStr = 'top ' + lineStart + '%';
+              const lineEndStr = 'top ' + lineEnd + '%';
+
+              gsap.to(lineEl, {
+                backgroundSize: '100% 100%, 100% 100%',
+                ease: 'none',
+                scrollTrigger: {
+                  trigger: wrapper,
+                  start: lineStartStr,
+                  end: lineEndStr,
+                  scrub: 0,
+                },
+              });
+            });
+          }
+        }
+      } else {
+        // STANDARD MODE - Original single-element scroll fill
+        const anim = gsap.to(el, {
+          backgroundSize: '100% 100%, 100% 100%',
+          ease: 'none',
+          scrollTrigger: {
+            trigger: wrapper,
+            start: scrollStart,
+            end: scrollEnd,
+            scrub: 0,
+            onUpdate: (self) => {
+              if (lockForward) {
+                const max = Math.max(self.progress, self._maxProgress || 0);
+                self._maxProgress = max;
+                if (self.progress < max) {
+                  self.animation.progress(max);
+                }
+              }
+            },
+          },
+        });
+        wrapper._scrollFillTrigger = anim && anim.scrollTrigger ? anim.scrollTrigger : null;
+      }
+
       // Expose applied values for debugging/inspection
       wrapper.dataset.scrollFillStartApplied = scrollStart;
       wrapper.dataset.scrollFillEndApplied = scrollEnd;

@@ -397,6 +397,9 @@ function supercraft_apply_attrs($element) {
             if (!empty($settings['supercraft_fill_line'])) {
                 $data_attrs['data-scroll-fill-line'] = 'yes';
             }
+            if (!empty($settings['supercraft_fill_forward'])) {
+                $data_attrs['data-scroll-fill-forward-only'] = 'true';
+            }
             break;
     }
 
