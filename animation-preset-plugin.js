@@ -11,13 +11,29 @@ document.addEventListener('DOMContentLoaded', function () {
     console.warn('ScrollTrigger not loaded. Scroll-based animations may not work.');
   }
 
-  // Lenis smooth scrolling - runs separate from ScrollTrigger
+  // Lenis smooth scrolling - synced with ScrollTrigger
   function initLenis() {
     if (!window.lenis && window.Lenis) {
       window.lenis = new window.Lenis({ lerp: 0.1, duration: 1.2, smoothWheel: true });
     }
     const lenis = window.lenis;
     if (!lenis) return;
+
+    ScrollTrigger.scrollerProxy(document.body, {
+      scrollTop(value) {
+        if (arguments.length) {
+          lenis.scrollTo(value, { immediate: true });
+        }
+        return lenis.targetScroll;
+      },
+      getBoundingClientRect() {
+        return { top: 0, left: 0, width: window.innerWidth, height: window.innerHeight };
+      },
+      pinType: document.body.style.transform ? 'transform' : 'fixed'
+    });
+
+    lenis.on('scroll', ScrollTrigger.update);
+
     function frame(time) { lenis.raf(time); requestAnimationFrame(frame); }
     requestAnimationFrame(frame);
   }
@@ -787,7 +803,7 @@ const lineByLine = parseBool(wrapper.dataset.scrollFillLine || 'false');
                   trigger: wrapper,
                   start: lineStartStr,
                   end: lineEndStr,
-                  scrub: 0,
+                  scrub: 0.4,
                 },
               });
             });
@@ -802,7 +818,7 @@ const lineByLine = parseBool(wrapper.dataset.scrollFillLine || 'false');
             trigger: wrapper,
             start: scrollStart,
             end: scrollEnd,
-            scrub: 0,
+            scrub: 0.4,
             onUpdate: (self) => {
               if (lockForward) {
                 const max = Math.max(self.progress, self._maxProgress || 0);
