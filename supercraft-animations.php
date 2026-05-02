@@ -18,9 +18,14 @@ if (file_exists($config_path)) {
 
 // Validation status helper (must be defined early)
 function supercraft_is_validated() {
-    if (!defined('SUPERCRAFT_SUPABASE_URL')) {
+    if (defined('SUPERCRAFT_ALLOW_UNVALIDATED') && SUPERCRAFT_ALLOW_UNVALIDATED) {
         return true;
     }
+
+    if (!defined('SUPERCRAFT_SUPABASE_URL')) {
+        return false;
+    }
+
     $status = get_option('supercraft_validation_status', 'not_set');
     return $status === 'valid';
 }
@@ -51,6 +56,10 @@ function supercraft_is_elementor_editor_context() {
 }
 
 function supercraft_anim_enqueue_assets() {
+    if (!supercraft_is_validated()) {
+        return;
+    }
+
     $base_path = plugin_dir_path(__FILE__);
     $css_version = file_exists($base_path . 'animation-preset-plugin.css')
         ? filemtime($base_path . 'animation-preset-plugin.css')
@@ -92,6 +101,10 @@ function supercraft_anim_enqueue_assets() {
 // Elementor editor-specific helper (preview/play controls)
 // Load editor helper in both panel and preview (guarded by editor-active body)
 add_action('elementor/editor/after_enqueue_scripts', function () {
+    if (!supercraft_is_validated()) {
+        return;
+    }
+
     $base_path = plugin_dir_path(__FILE__);
     $editor_js_version = file_exists($base_path . 'supercraft-anim-editor.js')
         ? filemtime($base_path . 'supercraft-anim-editor.js')
@@ -106,6 +119,10 @@ add_action('elementor/editor/after_enqueue_scripts', function () {
     );
 }, 1);
 add_action('elementor/frontend/after_enqueue_scripts', function () {
+    if (!supercraft_is_validated()) {
+        return;
+    }
+
     if (!supercraft_is_elementor_editor_context()) {
         return;
     }
@@ -128,6 +145,10 @@ add_action('elementor/frontend/container/before_render', 'supercraft_apply_attrs
 
 // Elementor controls
 $supercraft_controls_callback = function ($element, $section_id) {
+    if (!supercraft_is_validated()) {
+        return;
+    }
+
     if (method_exists($element, 'get_name')) {
         $widget_name = $element->get_name();
         if ($widget_name === 'tabs' || $widget_name === 'nested-tabs') {
@@ -1052,12 +1073,12 @@ add_action('elementor/element/container/after_section_end', $supercraft_controls
 add_action('elementor/element/container/section_layout/after_section_end', $supercraft_controls_callback, 10, 2);
 add_action('elementor/element/container/section_advanced/after_section_end', $supercraft_controls_callback, 10, 2);
 
-// Only register icon controls if validated (dev mode always allowed)
-if (supercraft_is_validated()) {
-
-    // Add custom icon for Superanimate section in Elementor panel
-    add_action('elementor/editor/after_enqueue_scripts', function () {
-        $icon_url = plugins_url('favicon.webp', __FILE__);
+// Register icon and apply attrs - check validation inside
+add_action('elementor/editor/after_enqueue_scripts', function () {
+    if (!supercraft_is_validated()) {
+        return;
+    }
+    $icon_url = plugins_url('favicon.webp', __FILE__);
         $css = '
     .elementor-panel .elementor-control-section_supercraft_anim_section .elementor-panel-heading .elementor-panel-heading-title:before {
         content: "";
@@ -1075,8 +1096,11 @@ if (supercraft_is_validated()) {
     });
 
     // Apply classes/data attributes on render
-    function supercraft_apply_attrs($element) {
-        // Prefer raw settings; fallback to display; final fallback to element data (editor mode)
+function supercraft_apply_attrs($element) {
+    if (!supercraft_is_validated()) {
+        return;
+    }
+    // Prefer raw settings; fallback to display; final fallback to element data (editor mode)
         $settings = method_exists($element, 'get_settings') ? $element->get_settings() : $element->get_settings_for_display();
         if (empty($settings) && method_exists($element, 'get_data')) {
             $data = $element->get_data();
@@ -1485,10 +1509,11 @@ if (supercraft_is_validated()) {
     if (!empty($styles)) {
         $element->add_render_attribute('_wrapper', 'style', implode(';', $styles));
     }
-    foreach ($data as $k => $v) {
+    foreach ($data_attrs as $k => $v) {
         $element->add_render_attribute('_wrapper', $k, $v);
     }
 }
+
 function supercraft_normalize_color($val) {
     if (is_array($val)) {
         if (!empty($val['color'])) {
@@ -1635,6 +1660,46 @@ add_action('admin_post_supercraft_validate_now', function() {
     exit;
 });
 
+// Add action for unlink
+add_action('admin_post_supercraft_unlink', function() {
+    check_admin_referer('supercraft_unlink');
+    $code = get_option('supercraft_embed_code', '');
+    $project_id = '';
+    if (!empty($code)) {
+        $code_col = defined('SUPERCRAFT_CODE_COLUMN') ? SUPERCRAFT_CODE_COLUMN : 'embed_public_key';
+        $url = SUPERCRAFT_SUPABASE_URL . '/rest/v1/' . SUPERCRAFT_TABLE . '?select=id&' . $code_col . '=eq.' . urlencode($code);
+        $response = wp_remote_get($url, [
+            'headers' => [
+                'apikey' => SUPERCRAFT_SUPABASE_ANON_KEY,
+                'Authorization' => 'Bearer ' . SUPERCRAFT_SUPABASE_ANON_KEY,
+            ],
+            'timeout' => 15,
+        ]);
+        $body = wp_remote_retrieve_body($response);
+        $data = json_decode($body, true);
+        if (!empty($data) && isset($data[0]['id'])) {
+            $project_id = $data[0]['id'];
+        }
+    }
+    if (!empty($project_id) && defined('SUPERCRAFT_PLUGIN_NAME')) {
+        $plugin_name = SUPERCRAFT_PLUGIN_NAME;
+        $delete_url = SUPERCRAFT_SUPABASE_URL . '/rest/v1/project_plugin_registrations?project_id=eq.' . $project_id . '&plugin_name=eq.' . urlencode($plugin_name);
+        wp_remote_request($delete_url, [
+            'method' => 'DELETE',
+            'headers' => [
+                'apikey' => SUPERCRAFT_SUPABASE_ANON_KEY,
+                'Authorization' => 'Bearer ' . SUPERCRAFT_SUPABASE_ANON_KEY,
+                'Prefer' => 'return=minimal',
+            ],
+        ]);
+    }
+    update_option('supercraft_embed_code', '');
+    update_option('supercraft_validation_status', 'not_set');
+    update_option('supercraft_last_validated', '');
+    wp_redirect(add_query_arg('updated', 'true', wp_get_referer()));
+    exit;
+});
+
 function supercraft_schedule_validation() {
     if (!wp_next_scheduled('supercraft_daily_validation')) {
         wp_schedule_event(time(), 'daily', 'supercraft_daily_validation');
@@ -1691,8 +1756,13 @@ function supercraft_render_admin_page() {
         <?php endif; ?>
 
         <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
-            <?php wp_nonce_field('supercraft_save_settings'); ?>
-            <input type="hidden" name="action" value="supercraft_save_embed_code">
+            <?php if ($status === 'valid'): ?>
+                <?php wp_nonce_field('supercraft_unlink'); ?>
+                <input type="hidden" name="action" value="supercraft_unlink">
+            <?php else: ?>
+                <?php wp_nonce_field('supercraft_save_settings'); ?>
+                <input type="hidden" name="action" value="supercraft_save_embed_code">
+            <?php endif; ?>
 
             <table class="form-table">
                 <tr>
@@ -1705,7 +1775,8 @@ function supercraft_render_admin_page() {
                                name="supercraft_embed_code" 
                                class="regular-text" 
                                value="<?php echo esc_attr($embed_code); ?>"
-                               placeholder="Enter your embed code">
+                               placeholder="Enter your embed code"
+                               <?php echo ($status === 'valid') ? 'readonly' : ''; ?>>
                     </td>
                 </tr>
                 <tr>
@@ -1725,7 +1796,12 @@ function supercraft_render_admin_page() {
                 </tr>
             </table>
 
-            <?php submit_button('Save & Validate'); ?>
+            <?php if ($status === 'valid'): ?>
+                <input type="hidden" name="supercraft_embed_code" value="<?php echo esc_attr($embed_code); ?>">
+                <?php submit_button('Unlink Embed Code', 'delete', 'submit', false, ['onclick' => 'return confirm("Are you sure you want to unlink this embed code?");']); ?>
+            <?php else: ?>
+                <?php submit_button('Save & Validate'); ?>
+            <?php endif; ?>
         </form>
     </div>
     <?php
@@ -1749,6 +1825,6 @@ if (!supercraft_is_validated()) {
     remove_action('wp_enqueue_scripts', 'supercraft_anim_enqueue_assets');
     remove_action('elementor/frontend/after_enqueue_scripts', 'supercraft_anim_enqueue_assets');
     remove_action('elementor/preview/enqueue_scripts', 'supercraft_anim_enqueue_assets');
-    remove_action('elementor/frontend/widget/before_render', 'supercraft_apply_attrs');
-    remove_action('elementor/frontend/container/before_render', 'supercraft_apply_attrs');
+    remove_action('elementor/frontend/widget/before_render', 'supercraft_apply_attrs', 1);
+    remove_action('elementor/frontend/container/before_render', 'supercraft_apply_attrs', 1);
 }
