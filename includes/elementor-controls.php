@@ -3,6 +3,58 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+if (!function_exists('supercraft_named_element_options')) {
+    function supercraft_named_element_options() {
+        $post_id = 0;
+        if (!empty($_GET['post'])) {
+            $post_id = absint($_GET['post']);
+        } elseif (!empty($_POST['post_id'])) {
+            $post_id = absint($_POST['post_id']);
+        } elseif (function_exists('get_the_ID')) {
+            $post_id = absint(get_the_ID());
+        }
+
+        if (!$post_id) {
+            return [];
+        }
+
+        $raw = get_post_meta($post_id, '_elementor_data', true);
+        if (empty($raw)) {
+            return [];
+        }
+
+        $data = json_decode($raw, true);
+        if (!is_array($data)) {
+            return [];
+        }
+
+        $options = [];
+        $walk = function ($items) use (&$walk, &$options) {
+            if (!is_array($items)) {
+                return;
+            }
+            foreach ($items as $item) {
+                $settings = isset($item['settings']) && is_array($item['settings']) ? $item['settings'] : [];
+                if (($settings['supercraft_named_enabled'] ?? '') === 'yes' && !empty($settings['supercraft_named_label'])) {
+                    $label = sanitize_text_field($settings['supercraft_named_label']);
+                    $key = strtolower($label);
+                    $key = preg_replace('/[^a-z0-9]/', '-', $key);
+                    $key = trim(preg_replace('/-+/', '-', $key), '-');
+                    if ($key) {
+                        $options[$key] = $label;
+                    }
+                }
+                if (!empty($item['elements'])) {
+                    $walk($item['elements']);
+                }
+            }
+        };
+        $walk($data);
+
+        return $options;
+    }
+}
+
 $supercraft_controls_callback = function ($element, $section_id) {
     if (!supercraft_is_validated()) {
         return;
@@ -64,6 +116,36 @@ $supercraft_controls_callback = function ($element, $section_id) {
             'icon' => 'eicon-animation',
         ]
     );
+
+    $element->add_control(
+        'supercraft_named_enabled',
+        [
+            'label' => __('Enable Named Element', 'supercraft-anim'),
+            'type' => \Elementor\Controls_Manager::SWITCHER,
+            'return_value' => 'yes',
+            'default' => '',
+            'frontend_available' => false,
+        ]
+    );
+
+    $element->add_control(
+        'supercraft_named_label',
+        [
+            'label' => __('Element Name', 'supercraft-anim'),
+            'type' => \Elementor\Controls_Manager::TEXT,
+            'default' => '',
+            'frontend_available' => false,
+            'condition' => [
+                'supercraft_named_enabled' => 'yes',
+            ],
+        ]
+    );
+
+    $element->start_controls_tabs('supercraft_tabs');
+
+    $element->start_controls_tab('supercraft_tab_entrance', [
+        'label' => __('Entrance', 'supercraft-anim'),
+    ]);
 
     $element->add_control(
         'supercraft_anim_category',
@@ -267,47 +349,47 @@ $supercraft_controls_callback = function ($element, $section_id) {
 
     $element->add_control(
         'supercraft_ct_delay',
-            [
-                'label' => __('Delay (s)', 'supercraft-anim'),
-                'type' => \Elementor\Controls_Manager::NUMBER,
-                'step' => 0.1,
-                'frontend_available' => false,
-                'condition' => [
-                    'supercraft_anim_category' => 'scroll-transform',
-                    'supercraft_scroll_preset' => 'custom',
-                    'supercraft_scroll_scrub!' => 'yes',
-                ],
-            ]
+        [
+            'label' => __('Delay (s)', 'supercraft-anim'),
+            'type' => \Elementor\Controls_Manager::NUMBER,
+            'step' => 0.1,
+            'frontend_available' => false,
+            'condition' => [
+                'supercraft_anim_category' => 'scroll-transform',
+                'supercraft_scroll_preset' => 'custom',
+                'supercraft_scroll_scrub!' => 'yes',
+            ],
+        ]
     );
 
     $element->add_control(
         'supercraft_ct_ease',
-            [
-                'label' => __('Ease', 'supercraft-anim'),
-                'type' => \Elementor\Controls_Manager::SELECT,
-                'options' => $ease_options,
-                'default' => 'power2.out',
-                'frontend_available' => false,
-                'condition' => [
-                    'supercraft_anim_category' => 'scroll-transform',
-                    'supercraft_scroll_preset' => 'custom',
-                    'supercraft_scroll_scrub!' => 'yes',
-                ],
-            ]
+        [
+            'label' => __('Ease', 'supercraft-anim'),
+            'type' => \Elementor\Controls_Manager::SELECT,
+            'options' => $ease_options,
+            'default' => 'power2.out',
+            'frontend_available' => false,
+            'condition' => [
+                'supercraft_anim_category' => 'scroll-transform',
+                'supercraft_scroll_preset' => 'custom',
+                'supercraft_scroll_scrub!' => 'yes',
+            ],
+        ]
     );
 
     $element->add_control(
         'supercraft_ct_trigger',
-            [
-                'label' => __('Trigger (e.g. top 85%)', 'supercraft-anim'),
-                'type' => \Elementor\Controls_Manager::TEXT,
-                'default' => 'top 85%',
-                'frontend_available' => false,
-                'condition' => [
-                    'supercraft_anim_category' => 'scroll-transform',
-                    'supercraft_scroll_preset' => 'custom',
-                ],
-            ]
+        [
+            'label' => __('Trigger (e.g. top 85%)', 'supercraft-anim'),
+            'type' => \Elementor\Controls_Manager::TEXT,
+            'default' => 'top 85%',
+            'frontend_available' => false,
+            'condition' => [
+                'supercraft_anim_category' => 'scroll-transform',
+                'supercraft_scroll_preset' => 'custom',
+            ],
+        ]
     );
 
     $element->add_control(
@@ -890,6 +972,647 @@ $supercraft_controls_callback = function ($element, $section_id) {
             ],
         ]
     );
+
+    $element->end_controls_tab();
+
+    $element->start_controls_tab('supercraft_tab_advanced', [
+        'label' => __('Advanced', 'supercraft-anim'),
+    ]);
+
+    $trigger_options = [
+        'scroll_into_view' => __('Scroll Into View', 'supercraft-anim'),
+        'idle_loop' => __('Idle Loop', 'supercraft-anim'),
+        'hover' => __('Hover', 'supercraft-anim'),
+        'static_state' => __('Initial State (Static)', 'supercraft-anim'),
+    ];
+
+    $element_mode_options = [
+        'self' => __('Self', 'supercraft-anim'),
+        'named' => __('Named', 'supercraft-anim'),
+    ];
+
+    $idle_effect_options = [
+        'pulse' => __('Pulse', 'supercraft-anim'),
+        'float' => __('Float', 'supercraft-anim'),
+        'spin-continuous' => __('Spin Continuous', 'supercraft-anim'),
+        'spin-yoyo' => __('Spin Yoyo', 'supercraft-anim'),
+        'breathe' => __('Breathe', 'supercraft-anim'),
+        'swing' => __('Swing', 'supercraft-anim'),
+        'custom-transform' => __('Custom Transform', 'supercraft-anim'),
+    ];
+
+    $hover_effect_options = [
+        'micro-scale' => __('Micro Scale', 'supercraft-anim'),
+        'tactile-press' => __('Tactile Press', 'supercraft-anim'),
+        'soft-elevate' => __('Soft Elevate', 'supercraft-anim'),
+        '3d-float' => __('3D Float', 'supercraft-anim'),
+        'focus-reveal' => __('Focus Reveal', 'supercraft-anim'),
+        'float-blur' => __('Float Blur', 'supercraft-anim'),
+        'skew-press' => __('Skew Press', 'supercraft-anim'),
+        'magnetic-pull' => __('Magnetic Pull', 'supercraft-anim'),
+        'cinematic-zoom' => __('Cinematic Zoom', 'supercraft-anim'),
+        'custom-transform' => __('Custom Transform', 'supercraft-anim'),
+    ];
+    $named_element_options = ['' => __('Select Named Element', 'supercraft-anim')] + supercraft_named_element_options();
+
+    $element->add_control(
+        'supercraft_advanced_animations',
+        [
+            'label' => __('Animations', 'supercraft-anim'),
+            'type' => \Elementor\Controls_Manager::REPEATER,
+            'prevent_empty' => false,
+            'fields' => [
+                [
+                    'name' => 'label',
+                    'label' => __('Label', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::TEXT,
+                    'default' => '',
+                ],
+                [
+                    'name' => 'preview_play_btn',
+                    'label' => __('Preview', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::BUTTON,
+                    'text' => __('Play Animation', 'supercraft-anim'),
+                    'event' => 'supercraft_preview_play',
+                    'condition' => [
+                        'trigger' => 'scroll_into_view',
+                    ],
+                ],
+                [
+                    'name' => 'trigger',
+                    'label' => __('Trigger', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::SELECT,
+                    'options' => $trigger_options,
+                    'default' => 'scroll_into_view',
+                ],
+                [
+                    'name' => 'animation_type',
+                    'label' => __('Animation Type', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::SELECT,
+                    'options' => [
+                        'scroll-transform' => __('Scroll Transform', 'supercraft-anim'),
+                        'image-reveal' => __('Image Reveal', 'supercraft-anim'),
+                        'container-reveal' => __('Container Reveal', 'supercraft-anim'),
+                        'split-text' => __('Split Text', 'supercraft-anim'),
+                    ],
+                    'default' => 'scroll-transform',
+                    'condition' => [
+                        'trigger' => 'scroll_into_view',
+                    ],
+                ],
+                [
+                    'name' => 'scroll_trigger',
+                    'label' => __('Viewport Trigger (e.g. top 85%)', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::TEXT,
+                    'default' => 'top 85%',
+                    'condition' => [
+                        'trigger' => 'scroll_into_view',
+                    ],
+                ],
+                [
+                    'name' => 'trigger_element_mode',
+                    'label' => __('Trigger Element Mode', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::SELECT,
+                    'options' => $element_mode_options,
+                    'default' => 'self',
+                    'conditions' => [
+                        'terms' => [
+                            [
+                                'name' => 'trigger',
+                                'operator' => '!==',
+                                'value' => 'idle_loop',
+                            ],
+                            [
+                                'name' => 'trigger',
+                                'operator' => '!==',
+                                'value' => 'static_state',
+                            ],
+                        ],
+                    ],
+                ],
+                [
+                    'name' => 'trigger_named_element',
+                    'label' => __('Trigger Named Element', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::SELECT,
+                    'options' => $named_element_options,
+                    'default' => '',
+                    'label_block' => true,
+                    'condition' => [
+                        'trigger_element_mode' => 'named',
+                    ],
+                ],
+                [
+                    'name' => 'animated_element_mode',
+                    'label' => __('Animated Element Mode', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::SELECT,
+                    'options' => $element_mode_options,
+                    'default' => 'self',
+                    'conditions' => [
+                        'terms' => [
+                            [
+                                'name' => 'trigger',
+                                'operator' => '!==',
+                                'value' => 'idle_loop',
+                            ],
+                            [
+                                'name' => 'trigger',
+                                'operator' => '!==',
+                                'value' => 'static_state',
+                            ],
+                        ],
+                    ],
+                ],
+                [
+                    'name' => 'animated_named_element',
+                    'label' => __('Animated Named Element', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::SELECT,
+                    'options' => $named_element_options,
+                    'default' => '',
+                    'label_block' => true,
+                    'condition' => [
+                        'animated_element_mode' => 'named',
+                    ],
+                ],
+                [
+                    'name' => 'idle_effect',
+                    'label' => __('Idle Effect', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::SELECT,
+                    'options' => $idle_effect_options,
+                    'default' => 'pulse',
+                    'condition' => [
+                        'trigger' => 'idle_loop',
+                    ],
+                ],
+                [
+                    'name' => 'hover_effect',
+                    'label' => __('Hover Effect', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::SELECT,
+                    'options' => $hover_effect_options,
+                    'default' => 'micro-scale',
+                    'condition' => [
+                        'trigger' => 'hover',
+                    ],
+                ],
+                [
+                    'name' => 'scroll_preset',
+                    'label' => __('Preset', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::SELECT,
+                    'options' => $scroll_presets,
+                    'default' => 'fade-up',
+                    'condition' => [
+                        'trigger' => 'scroll_into_view',
+                        'animation_type' => 'scroll-transform',
+                    ],
+                ],
+                [
+                    'name' => 'image_direction',
+                    'label' => __('Direction', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::SELECT,
+                    'options' => [
+                        'left' => __('Left', 'supercraft-anim'),
+                        'right' => __('Right', 'supercraft-anim'),
+                        'top' => __('Top', 'supercraft-anim'),
+                        'bottom' => __('Bottom', 'supercraft-anim'),
+                    ],
+                    'default' => 'left',
+                    'condition' => [
+                        'trigger' => 'scroll_into_view',
+                        'animation_type' => 'image-reveal',
+                    ],
+                ],
+                [
+                    'name' => 'container_direction',
+                    'label' => __('Direction', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::SELECT,
+                    'options' => [
+                        'center' => __('Center', 'supercraft-anim'),
+                        'left' => __('Left', 'supercraft-anim'),
+                        'right' => __('Right', 'supercraft-anim'),
+                        'top' => __('Top', 'supercraft-anim'),
+                        'bottom' => __('Bottom', 'supercraft-anim'),
+                    ],
+                    'default' => 'center',
+                    'condition' => [
+                        'trigger' => 'scroll_into_view',
+                        'animation_type' => 'container-reveal',
+                    ],
+                ],
+                [
+                    'name' => 'split_mode',
+                    'label' => __('Split Mode', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::SELECT,
+                    'options' => [
+                        'chars' => __('Characters', 'supercraft-anim'),
+                        'words' => __('Words', 'supercraft-anim'),
+                    ],
+                    'default' => 'chars',
+                    'condition' => [
+                        'trigger' => 'scroll_into_view',
+                        'animation_type' => 'split-text',
+                    ],
+                ],
+                [
+                    'name' => 'duration',
+                    'label' => __('Duration (s)', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::NUMBER,
+                    'step' => 0.1,
+                    'default' => 0.8,
+                    'conditions' => [
+                        'terms' => [
+                            [
+                                'name' => 'trigger',
+                                'operator' => '!==',
+                                'value' => 'static_state',
+                            ],
+                            [
+                                'name' => 'trigger',
+                                'operator' => '!==',
+                                'value' => 'hover',
+                            ],
+                        ],
+                    ],
+                ],
+                [
+                    'name' => 'hover_duration',
+                    'label' => __('Duration (s)', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::NUMBER,
+                    'step' => 0.1,
+                    'default' => 0.1,
+                    'condition' => [
+                        'trigger' => 'hover',
+                    ],
+                ],
+                [
+                    'name' => 'delay',
+                    'label' => __('Delay (s)', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::NUMBER,
+                    'step' => 0.1,
+                    'default' => 0,
+                    'condition' => [
+                        'trigger!' => 'static_state',
+                    ],
+                ],
+                [
+                    'name' => 'ease',
+                    'label' => __('Ease', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::SELECT,
+                    'options' => $ease_options,
+                    'default' => 'power2.out',
+                    'condition' => [
+                        'trigger!' => 'static_state',
+                    ],
+                ],
+                [
+                    'name' => 'intensity',
+                    'label' => __('Intensity', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::NUMBER,
+                    'step' => 0.1,
+                    'default' => 1,
+                    'condition' => [
+                        'trigger!' => 'static_state',
+                    ],
+                ],
+                [
+                    'name' => 'speed',
+                    'label' => __('Speed', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::NUMBER,
+                    'step' => 0.1,
+                    'default' => 1,
+                    'condition' => [
+                        'trigger!' => 'static_state',
+                    ],
+                ],
+                [
+                    'name' => 'custom_start_x',
+                    'label' => __('Start X (px)', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::NUMBER,
+                    'default' => 0,
+                    'conditions' => [
+                        'relation' => 'or',
+                        'terms' => [
+                            [
+                                'name' => 'idle_effect',
+                                'operator' => '===',
+                                'value' => 'custom-transform',
+                            ],
+                            
+                            [
+                                'name' => 'scroll_preset',
+                                'operator' => '===',
+                                'value' => 'custom',
+                            ],
+                        ],
+                    ],
+                ],
+                [
+                    'name' => 'custom_start_y',
+                    'label' => __('Start Y (px)', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::NUMBER,
+                    'default' => 0,
+                    'conditions' => [
+                        'relation' => 'or',
+                        'terms' => [
+                            [
+                                'name' => 'idle_effect',
+                                'operator' => '===',
+                                'value' => 'custom-transform',
+                            ],
+                            
+                            [
+                                'name' => 'scroll_preset',
+                                'operator' => '===',
+                                'value' => 'custom',
+                            ],
+                        ],
+                    ],
+                ],
+                [
+                    'name' => 'custom_start_rotate',
+                    'label' => __('Start Rotate (deg)', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::NUMBER,
+                    'default' => 0,
+                    'conditions' => [
+                        'relation' => 'or',
+                        'terms' => [
+                            [
+                                'name' => 'idle_effect',
+                                'operator' => '===',
+                                'value' => 'custom-transform',
+                            ],
+                            
+                            [
+                                'name' => 'scroll_preset',
+                                'operator' => '===',
+                                'value' => 'custom',
+                            ],
+                        ],
+                    ],
+                ],
+                [
+                    'name' => 'custom_start_scale',
+                    'label' => __('Start Scale', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::NUMBER,
+                    'step' => 0.01,
+                    'default' => 1,
+                    'conditions' => [
+                        'relation' => 'or',
+                        'terms' => [
+                            [
+                                'name' => 'idle_effect',
+                                'operator' => '===',
+                                'value' => 'custom-transform',
+                            ],
+                            
+                            [
+                                'name' => 'scroll_preset',
+                                'operator' => '===',
+                                'value' => 'custom',
+                            ],
+                        ],
+                    ],
+                ],
+                [
+                    'name' => 'custom_start_opacity',
+                    'label' => __('Start Opacity', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::NUMBER,
+                    'step' => 0.01,
+                    'default' => 1,
+                    'conditions' => [
+                        'relation' => 'or',
+                        'terms' => [
+                            [
+                                'name' => 'idle_effect',
+                                'operator' => '===',
+                                'value' => 'custom-transform',
+                            ],
+                            
+                            [
+                                'name' => 'scroll_preset',
+                                'operator' => '===',
+                                'value' => 'custom',
+                            ],
+                        ],
+                    ],
+                ],
+                [
+                    'name' => 'custom_start_blur',
+                    'label' => __('Start Blur (px)', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::NUMBER,
+                    'default' => 0,
+                    'conditions' => [
+                        'relation' => 'or',
+                        'terms' => [
+                            [
+                                'name' => 'idle_effect',
+                                'operator' => '===',
+                                'value' => 'custom-transform',
+                            ],
+                            
+                            [
+                                'name' => 'scroll_preset',
+                                'operator' => '===',
+                                'value' => 'custom',
+                            ],
+                        ],
+                    ],
+                ],
+                [
+                    'name' => 'custom_x',
+                    'label' => __('End X (px)', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::NUMBER,
+                    'default' => 0,
+                    'conditions' => [
+                        'relation' => 'or',
+                        'terms' => [
+                            [
+                                'name' => 'idle_effect',
+                                'operator' => '===',
+                                'value' => 'custom-transform',
+                            ],
+                            [
+                                'name' => 'hover_effect',
+                                'operator' => '===',
+                                'value' => 'custom-transform',
+                            ],
+                            [
+                                'name' => 'scroll_preset',
+                                'operator' => '===',
+                                'value' => 'custom',
+                            ],
+                            [
+                                'name' => 'trigger',
+                                'operator' => '===',
+                                'value' => 'static_state',
+                            ],
+                        ],
+                    ],
+                ],
+                [
+                    'name' => 'custom_y',
+                    'label' => __('End Y (px)', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::NUMBER,
+                    'default' => 0,
+                    'conditions' => [
+                        'relation' => 'or',
+                        'terms' => [
+                            [
+                                'name' => 'idle_effect',
+                                'operator' => '===',
+                                'value' => 'custom-transform',
+                            ],
+                            [
+                                'name' => 'hover_effect',
+                                'operator' => '===',
+                                'value' => 'custom-transform',
+                            ],
+                            [
+                                'name' => 'scroll_preset',
+                                'operator' => '===',
+                                'value' => 'custom',
+                            ],
+                            [
+                                'name' => 'trigger',
+                                'operator' => '===',
+                                'value' => 'static_state',
+                            ],
+                        ],
+                    ],
+                ],
+                [
+                    'name' => 'custom_rotate',
+                    'label' => __('End Rotate (deg)', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::NUMBER,
+                    'default' => 0,
+                    'conditions' => [
+                        'relation' => 'or',
+                        'terms' => [
+                            [
+                                'name' => 'idle_effect',
+                                'operator' => '===',
+                                'value' => 'custom-transform',
+                            ],
+                            [
+                                'name' => 'hover_effect',
+                                'operator' => '===',
+                                'value' => 'custom-transform',
+                            ],
+                            [
+                                'name' => 'scroll_preset',
+                                'operator' => '===',
+                                'value' => 'custom',
+                            ],
+                            [
+                                'name' => 'trigger',
+                                'operator' => '===',
+                                'value' => 'static_state',
+                            ],
+                        ],
+                    ],
+                ],
+                [
+                    'name' => 'custom_scale',
+                    'label' => __('End Scale', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::NUMBER,
+                    'step' => 0.01,
+                    'default' => 1,
+                    'conditions' => [
+                        'relation' => 'or',
+                        'terms' => [
+                            [
+                                'name' => 'idle_effect',
+                                'operator' => '===',
+                                'value' => 'custom-transform',
+                            ],
+                            [
+                                'name' => 'hover_effect',
+                                'operator' => '===',
+                                'value' => 'custom-transform',
+                            ],
+                            [
+                                'name' => 'scroll_preset',
+                                'operator' => '===',
+                                'value' => 'custom',
+                            ],
+                            [
+                                'name' => 'trigger',
+                                'operator' => '===',
+                                'value' => 'static_state',
+                            ],
+                        ],
+                    ],
+                ],
+                [
+                    'name' => 'custom_opacity',
+                    'label' => __('End Opacity', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::NUMBER,
+                    'step' => 0.01,
+                    'default' => 1,
+                    'conditions' => [
+                        'relation' => 'or',
+                        'terms' => [
+                            [
+                                'name' => 'idle_effect',
+                                'operator' => '===',
+                                'value' => 'custom-transform',
+                            ],
+                            [
+                                'name' => 'hover_effect',
+                                'operator' => '===',
+                                'value' => 'custom-transform',
+                            ],
+                            [
+                                'name' => 'scroll_preset',
+                                'operator' => '===',
+                                'value' => 'custom',
+                            ],
+                            [
+                                'name' => 'trigger',
+                                'operator' => '===',
+                                'value' => 'static_state',
+                            ],
+                        ],
+                    ],
+                ],
+                [
+                    'name' => 'custom_blur',
+                    'label' => __('End Blur (px)', 'supercraft-anim'),
+                    'type' => \Elementor\Controls_Manager::NUMBER,
+                    'default' => 0,
+                    'conditions' => [
+                        'relation' => 'or',
+                        'terms' => [
+                            [
+                                'name' => 'idle_effect',
+                                'operator' => '===',
+                                'value' => 'custom-transform',
+                            ],
+                            [
+                                'name' => 'hover_effect',
+                                'operator' => '===',
+                                'value' => 'custom-transform',
+                            ],
+                            [
+                                'name' => 'scroll_preset',
+                                'operator' => '===',
+                                'value' => 'custom',
+                            ],
+                            [
+                                'name' => 'trigger',
+                                'operator' => '===',
+                                'value' => 'static_state',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+            'default' => [],
+            'title_field' => '{{{ label || trigger }}}',
+        ]
+    );
+
+    $element->end_controls_tab();
+
+    $element->end_controls_tabs();
 
     $element->end_controls_section();
 };

@@ -15,9 +15,6 @@ function supercraft_apply_attrs($element) {
         }
     }
     $cat = $settings['supercraft_anim_category'] ?? '';
-    if (!$cat) {
-        return;
-    }
 
     $classes = [];
     $styles = [];
@@ -32,6 +29,7 @@ function supercraft_apply_attrs($element) {
         }
     }
 
+    if ($cat) {
     switch ($cat) {
         case 'scroll-transform':
             $isScrub = !empty($settings['supercraft_scroll_scrub']);
@@ -402,6 +400,33 @@ function supercraft_apply_attrs($element) {
             }
             break;
     }
+    }
+
+    $named_enabled = !empty($settings['supercraft_named_enabled']);
+    $named_label = $settings['supercraft_named_label'] ?? '';
+    if ($named_enabled && !empty($named_label)) {
+        $named_key = supercraft_slugify($named_label);
+        if (!empty($named_key)) {
+            $data_attrs['data-supercraft-named'] = 'true';
+            $data_attrs['data-supercraft-name'] = $named_label;
+            $data_attrs['data-supercraft-key'] = $named_key;
+        }
+    }
+
+    $advanced_rows = $settings['supercraft_advanced_animations'] ?? [];
+    if (!empty($advanced_rows) && is_array($advanced_rows)) {
+        $sanitized_rows = [];
+        foreach ($advanced_rows as $row) {
+            $sanitized = supercraft_sanitize_advanced_row($row);
+            if (!empty($sanitized)) {
+                $sanitized_rows[] = $sanitized;
+            }
+        }
+        if (!empty($sanitized_rows)) {
+            $classes[] = 'supercraft-advanced-host';
+            $data_attrs['data-supercraft-advanced'] = wp_json_encode($sanitized_rows);
+        }
+    }
 
     if (!empty($classes)) {
         $element->add_render_attribute('_wrapper', 'class', $classes);
@@ -436,4 +461,136 @@ function supercraft_global_css_var($global) {
         return '';
     }
     return 'var(--e-global-color-' . $raw . ')';
+}
+
+function supercraft_slugify($text) {
+    if (empty($text)) {
+        return '';
+    }
+    $text = strtolower($text);
+    $text = preg_replace('/[^a-z0-9]/', '-', $text);
+    $text = preg_replace('/-+/', '-', $text);
+    $text = trim($text, '-');
+    return $text;
+}
+
+function supercraft_sanitize_advanced_row($row) {
+    if (empty($row) || !is_array($row)) {
+        return null;
+    }
+    $sanitized = [];
+    if (!empty($row['trigger'])) {
+        $sanitized['trigger'] = sanitize_text_field($row['trigger']);
+    }
+    $trigger = $sanitized['trigger'] ?? '';
+    if ($trigger === 'scroll_into_view' && !empty($row['animation_type'])) {
+        $sanitized['animationType'] = sanitize_text_field($row['animation_type']);
+    } elseif ($trigger === 'scroll_into_view') {
+        $sanitized['animationType'] = 'scroll-transform';
+    }
+    if (!empty($row['trigger_element_mode'])) {
+        $sanitized['triggerElementMode'] = sanitize_text_field($row['trigger_element_mode']);
+    }
+    if (!empty($row['trigger_named_element'])) {
+        $sanitized['triggerNamed'] = supercraft_slugify($row['trigger_named_element']);
+    }
+    if (!empty($row['animated_element_mode'])) {
+        $sanitized['animatedElementMode'] = sanitize_text_field($row['animated_element_mode']);
+    }
+    if (!empty($row['animated_named_element'])) {
+        $sanitized['animatedNamed'] = supercraft_slugify($row['animated_named_element']);
+    }
+    if (!empty($row['effect'])) {
+        $sanitized['effect'] = sanitize_text_field($row['effect']);
+    }
+    if ($trigger === 'idle_loop' && !empty($row['idle_effect'])) {
+        $sanitized['effect'] = sanitize_text_field($row['idle_effect']);
+    } elseif ($trigger === 'hover' && !empty($row['hover_effect'])) {
+        $sanitized['effect'] = sanitize_text_field($row['hover_effect']);
+    } elseif ($trigger === 'static_state') {
+        $sanitized['effect'] = 'custom-transform';
+    }
+    $duration_key = ($trigger === 'hover') ? 'hover_duration' : 'duration';
+    if (isset($row[$duration_key]) && $row[$duration_key] !== '' && $row[$duration_key] !== null) {
+        $val = sanitize_text_field($row[$duration_key]);
+        if (is_numeric($val)) {
+            $sanitized['duration'] = $val + 0;
+        }
+    }
+    if (isset($row['delay']) && $row['delay'] !== '' && $row['delay'] !== null) {
+        $val = sanitize_text_field($row['delay']);
+        if (is_numeric($val)) {
+            $sanitized['delay'] = $val + 0;
+        }
+    }
+    if (!empty($row['ease'])) {
+        $sanitized['ease'] = sanitize_text_field($row['ease']);
+    }
+    if (isset($row['intensity']) && $row['intensity'] !== '' && $row['intensity'] !== null) {
+        $val = sanitize_text_field($row['intensity']);
+        if (is_numeric($val)) {
+            $sanitized['intensity'] = $val + 0;
+        }
+    }
+    if (isset($row['speed']) && $row['speed'] !== '' && $row['speed'] !== null) {
+        $val = sanitize_text_field($row['speed']);
+        if (is_numeric($val)) {
+            $sanitized['speed'] = $val + 0;
+        }
+    }
+    if (!empty($row['scroll_preset'])) {
+        $sanitized['scrollPreset'] = sanitize_text_field($row['scroll_preset']);
+    }
+    if (!empty($row['scroll_trigger'])) {
+        $sanitized['scroll_trigger'] = sanitize_text_field($row['scroll_trigger']);
+    }
+    if (!empty($row['image_direction'])) {
+        $sanitized['imageDirection'] = sanitize_text_field($row['image_direction']);
+    }
+    if (!empty($row['container_direction'])) {
+        $sanitized['containerDirection'] = sanitize_text_field($row['container_direction']);
+    }
+    if (!empty($row['split_mode'])) {
+        $sanitized['splitMode'] = sanitize_text_field($row['split_mode']);
+    }
+    $is_custom = (!empty($sanitized['effect']) && $sanitized['effect'] === 'custom-transform') || (!empty($row['scroll_preset']) && $row['scroll_preset'] === 'custom');
+    if ($is_custom) {
+        if (isset($row['custom_x']) && $row['custom_x'] !== '' && $row['custom_x'] !== null) {
+            $sanitized['x'] = floatval($row['custom_x']);
+        }
+        if (isset($row['custom_y']) && $row['custom_y'] !== '' && $row['custom_y'] !== null) {
+            $sanitized['y'] = floatval($row['custom_y']);
+        }
+        if (isset($row['custom_rotate']) && $row['custom_rotate'] !== '' && $row['custom_rotate'] !== null) {
+            $sanitized['rotate'] = floatval($row['custom_rotate']);
+        }
+        if (isset($row['custom_scale']) && $row['custom_scale'] !== '' && $row['custom_scale'] !== null) {
+            $sanitized['scale'] = floatval($row['custom_scale']);
+        }
+        if (isset($row['custom_opacity']) && $row['custom_opacity'] !== '' && $row['custom_opacity'] !== null) {
+            $sanitized['opacity'] = floatval($row['custom_opacity']);
+        }
+        if (isset($row['custom_blur']) && $row['custom_blur'] !== '' && $row['custom_blur'] !== null) {
+            $sanitized['blur'] = floatval($row['custom_blur']);
+        }
+        if (isset($row['custom_start_x']) && $row['custom_start_x'] !== '' && $row['custom_start_x'] !== null) {
+            $sanitized['startX'] = floatval($row['custom_start_x']);
+        }
+        if (isset($row['custom_start_y']) && $row['custom_start_y'] !== '' && $row['custom_start_y'] !== null) {
+            $sanitized['startY'] = floatval($row['custom_start_y']);
+        }
+        if (isset($row['custom_start_rotate']) && $row['custom_start_rotate'] !== '' && $row['custom_start_rotate'] !== null) {
+            $sanitized['startRotate'] = floatval($row['custom_start_rotate']);
+        }
+        if (isset($row['custom_start_scale']) && $row['custom_start_scale'] !== '' && $row['custom_start_scale'] !== null) {
+            $sanitized['startScale'] = floatval($row['custom_start_scale']);
+        }
+        if (isset($row['custom_start_opacity']) && $row['custom_start_opacity'] !== '' && $row['custom_start_opacity'] !== null) {
+            $sanitized['startOpacity'] = floatval($row['custom_start_opacity']);
+        }
+        if (isset($row['custom_start_blur']) && $row['custom_start_blur'] !== '' && $row['custom_start_blur'] !== null) {
+            $sanitized['startBlur'] = floatval($row['custom_start_blur']);
+        }
+    }
+    return $sanitized;
 }

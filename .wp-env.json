@@ -1,9 +1,15 @@
 {
   "core": "WordPress/WordPress",
   "plugins": [
-    ".",
-    "https://downloads.wordpress.org/plugin/elementor.latest-stable.zip"
+    "./local-plugins/elementor",
+    "./local-plugins/pro-elements"
   ],
+  "themes": [
+    "./local-themes/hello-elementor"
+  ],
+  "mappings": {
+    "wp-content/plugins/supercraft-animation-plugin": "."
+  },
   "config": {
     "WP_DEBUG": true,
     "SCRIPT_DEBUG": true

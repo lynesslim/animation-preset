@@ -43,6 +43,7 @@ function applyStartStateFromStyles(el) {
   const ANIM_CLASSES = [
     'scroll-transform',
     'scroll-transform-scrub',
+    'supercraft-advanced-host',
     'split-text-char-fade',
     'split-text-char-fade-y',
     'split-text-char-fade-scroll',
@@ -108,6 +109,47 @@ function applyStartStateFromStyles(el) {
     return Object.keys(settings).some((key) => key.indexOf('supercraft_') === 0);
   }
 
+  // Build registry of named elements from DOM for dropdown population
+  const namedElementRegistryEditor = {};
+
+  function populateNamedElementOptions() {
+    const registry = {};
+    const namedElements = document.querySelectorAll('[data-supercraft-key]');
+    namedElements.forEach((el) => {
+      const key = el.dataset.supercraftKey;
+      const name = el.dataset.supercraftName;
+      if (key && name) {
+        registry[key] = name;
+      }
+    });
+    // Update dropdown options in repeater controls
+    document.querySelectorAll('.elementor-repeater-row[data-row_number]').forEach((row) => {
+      const triggerSelect = row.querySelector('[data-setting="trigger_named_element"]');
+      const animatedSelect = row.querySelector('[data-setting="animated_named_element"]');
+      if (triggerSelect) {
+        updateSelectOptions(triggerSelect, registry);
+      }
+      if (animatedSelect) {
+        updateSelectOptions(animatedSelect, registry);
+      }
+    });
+  }
+
+  function updateSelectOptions(selectEl, options) {
+    if (!selectEl || !selectEl.tagName) return;
+    const currentVal = selectEl.value;
+    selectEl.innerHTML = '<option value="">' + (elementor.translate('select_option') || 'Select...') + '</option>';
+    Object.entries(options).forEach(([key, name]) => {
+      const option = document.createElement('option');
+      option.value = key;
+      option.textContent = name;
+      selectEl.appendChild(option);
+    });
+    if (options[currentVal]) {
+      selectEl.value = currentVal;
+    }
+  }
+
   function stripAnimationClasses($el, force = false) {
     if (!$el || !$el.removeClass) return;
     // Never mutate non-Supercraft elements unless explicitly forced.
@@ -127,7 +169,8 @@ function applyStartStateFromStyles(el) {
           !s.startsWith('--char-') &&
           !s.startsWith('--reveal-') &&
           !s.startsWith('--scroll-fill-') &&
-          !s.startsWith('--animation-')
+          !s.startsWith('--animation-') &&
+          !s.startsWith('--sc-')
       )
       .join(';');
     if (newStyle) {
@@ -142,7 +185,12 @@ function applyStartStateFromStyles(el) {
       'data-transform-forward-only',
       'data-split-forward-only',
       'data-reveal-forward-only',
-      'data-scroll-fill-base'
+      'data-scroll-fill-base',
+      'data-supercraft-applied',
+      'data-supercraft-named',
+      'data-supercraft-name',
+      'data-supercraft-key',
+      'data-supercraft-advanced'
     ].forEach((attr) => $el.removeAttr(attr));
     $el.removeAttr('data-supercraft-applied');
   }
@@ -156,17 +204,98 @@ function applyStartStateFromStyles(el) {
     const settings = getSettingsAttributes(model) || {};
 
     const cat = settings.supercraft_anim_category || '';
+    const advData = settings.supercraft_advanced_animations;
+    let advancedRows = [];
+    if (Array.isArray(advData)) {
+      advancedRows = advData;
+    } else if (advData && advData.models) {
+      advancedRows = advData.models.map(m => m.attributes);
+    }
+    const hasAdvanced = advancedRows.length > 0;
+    const hasNamedElement =
+      settings.supercraft_named_enabled === 'yes' &&
+      typeof settings.supercraft_named_label === 'string' &&
+      settings.supercraft_named_label.trim() !== '';
     const hasDecor = hasSupercraftDecorations($el); // only true when we previously applied
-    if (!cat && !hasDecor) return; // Not ours; do nothing
-    if (!cat && hasDecor) {
+    if (!cat && !hasAdvanced && !hasNamedElement && !hasDecor) return; // Not ours; do nothing
+    if (!cat && !hasAdvanced && !hasNamedElement && hasDecor) {
       stripAnimationClasses($el); // User cleared the setting; clean up our traces
       return;
     }
+
+    // Populate named element dropdown options from DOM
+    populateNamedElementOptions();
 
     stripAnimationClasses($el);
     $el.attr('data-supercraft-applied', 'true');
 
     const styles = [];
+    const slugify = (value) =>
+      String(value || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+
+    if (hasNamedElement) {
+      const label = settings.supercraft_named_label.trim();
+      const key = slugify(label);
+      if (key) {
+        $el.attr('data-supercraft-named', 'true');
+        $el.attr('data-supercraft-name', label);
+        $el.attr('data-supercraft-key', key);
+      }
+    }
+
+    if (hasAdvanced) {
+      const advancedConfig = advancedRows.map((row) => {
+        const rowTrigger = row.trigger || 'scroll_into_view';
+        let rowEffect = row.effect || 'fade-up';
+        if (rowTrigger === 'idle_loop' && row.idle_effect) {
+          rowEffect = row.idle_effect;
+        } else if (rowTrigger === 'hover' && row.hover_effect) {
+          rowEffect = row.hover_effect;
+        } else if (rowTrigger === 'static_state') {
+          rowEffect = 'custom-transform';
+        }
+        const config = {
+          trigger: rowTrigger,
+          animationType: row.animation_type || (rowTrigger === 'scroll_into_view' ? 'scroll-transform' : 'simple'),
+          triggerElementMode: row.trigger_element_mode || 'self',
+          triggerNamed: slugify(row.trigger_named_element || ''),
+          animatedElementMode: row.animated_element_mode || 'self',
+          animatedNamed: slugify(row.animated_named_element || ''),
+          effect: rowEffect,
+          duration: rowTrigger === 'hover' ? row.hover_duration : row.duration,
+          delay: row.delay,
+          ease: row.ease,
+          intensity: row.intensity,
+          speed: row.speed,
+          scrollPreset: row.scroll_preset || '',
+          imageDirection: row.image_direction || '',
+          containerDirection: row.container_direction || '',
+          splitMode: row.split_mode || 'chars',
+        };
+        const isCustomTransform = rowEffect === 'custom-transform';
+        if (isCustomTransform) {
+          config.x = row.custom_x;
+          config.y = row.custom_y;
+          config.rotate = row.custom_rotate;
+          config.scale = row.custom_scale;
+          config.opacity = row.custom_opacity;
+          config.blur = row.custom_blur;
+          config.startX = row.custom_start_x;
+          config.startY = row.custom_start_y;
+          config.startRotate = row.custom_start_rotate;
+          config.startScale = row.custom_start_scale;
+          config.startOpacity = row.custom_start_opacity;
+          config.startBlur = row.custom_start_blur;
+        }
+        return config;
+      });
+      $el.addClass('supercraft-advanced-host');
+      $el.attr('data-supercraft-advanced', JSON.stringify(advancedConfig));
+    }
 
     // Apply classes and styles based on category
     switch (cat) {
@@ -537,6 +666,7 @@ function applyStartStateFromStyles(el) {
           $el.attr('data-scroll-fill-line', 'yes');
         }
         break;
+
     }
 
     // Apply inline styles
@@ -795,13 +925,14 @@ function applyStartStateFromStyles(el) {
     if (window.ScrollTrigger) {
       ScrollTrigger.getAll().forEach((st) => st.kill());
     }
-    document.querySelectorAll('[data-scroll-transform-init], [data-scroll-transform-scrub-init], [data-image-reveal-init], [data-container-reveal-init], [data-scroll-fill-init], [data-anim-init]').forEach((el) => {
+    document.querySelectorAll('[data-advanced-init], [data-scroll-transform-init], [data-scroll-transform-scrub-init], [data-image-reveal-init], [data-container-reveal-init], [data-scroll-fill-init], [data-anim-init]').forEach((el) => {
       delete el.dataset.scrollTransformInit;
       delete el.dataset.scrollTransformScrubInit;
       delete el.dataset.imageRevealInit;
       delete el.dataset.containerRevealInit;
       delete el.dataset.scrollFillInit;
       delete el.dataset.animInit;
+      delete el.dataset.advancedInit;
     });
     if (window.initAllAnimations) {
       window.initAllAnimations();

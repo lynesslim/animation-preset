@@ -4,7 +4,7 @@
   "private": true,
   "description": "Local WordPress testing setup for the Superanimate GSAP Elementor plugin.",
   "scripts": {
-    "wp:start": "wp-env start",
+    "wp:start": "wp-env start && wp-env run cli wp theme activate hello-elementor",
     "wp:stop": "wp-env stop",
     "wp:reset": "wp-env clean all",
     "wp:destroy": "wp-env destroy",

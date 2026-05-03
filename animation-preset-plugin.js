@@ -1200,6 +1200,617 @@ const lineByLine = parseBool(wrapper.dataset.scrollFillLine || 'false');
   }
 
   /* ==========================================
+     ADVANCED ANIMATIONS
+     Data-driven animations using data attributes emitted by PHP
+     ========================================== */
+  const namedElementRegistry = {};
+
+  function buildNamedElementRegistry() {
+    const namedElements = document.querySelectorAll('[data-supercraft-named="true"]');
+    namedElements.forEach((el) => {
+      const key = el.dataset.supercraftKey;
+      if (key) {
+        if (!namedElementRegistry[key]) {
+          namedElementRegistry[key] = [];
+        }
+        namedElementRegistry[key].push(el);
+      }
+    });
+  }
+
+  function resolveElement(mode, namedKey, hostEl) {
+    if (mode === 'self' || !namedKey) {
+      return [hostEl];
+    }
+    return namedElementRegistry[namedKey] || null;
+  }
+
+  function getPresetTransforms(effect, opts) {
+    const { duration = 0.8, delay = 0, ease = 'power2.out', intensity = 1 } = opts;
+    const base = { duration, delay, ease };
+
+    switch (effect) {
+      // --- Premium Idle Presets ---
+      case 'pulse':
+        return { ...base, from: { scale: 1 }, to: { scale: 1 + (0.03 * intensity) }, yoyo: true, repeat: -1 };
+      case 'float':
+        return { ...base, from: { y: 0 }, to: { y: -8 * intensity }, yoyo: true, repeat: -1, ease: 'sine.inOut' };
+      case 'spin-continuous':
+        return { ...base, from: { rotation: 0 }, to: { rotation: 360 * (intensity > 0 ? 1 : -1) }, yoyo: false, repeat: -1, ease: 'none' };
+      case 'spin-yoyo':
+        return { ...base, from: { rotation: -10 * intensity }, to: { rotation: 10 * intensity }, yoyo: true, repeat: -1, ease: 'sine.inOut' };
+      case 'breathe':
+        return { ...base, from: { scale: 1, filter: 'blur(0px)' }, to: { scale: 1 + (0.02 * intensity), filter: `blur(${2 * intensity}px)` }, yoyo: true, repeat: -1, ease: 'sine.inOut' };
+      case 'swing':
+        return { ...base, from: { rotation: -5 * intensity, transformOrigin: 'top center' }, to: { rotation: 5 * intensity, transformOrigin: 'top center' }, yoyo: true, repeat: -1, ease: 'sine.inOut' };
+      // --- Custom Transform ---
+      case 'custom-transform': {
+        const toObj = {};
+        if (opts.x !== undefined && opts.x !== '') toObj.x = opts.x;
+        if (opts.y !== undefined && opts.y !== '') toObj.y = opts.y;
+        if (opts.rotate !== undefined && opts.rotate !== '') toObj.rotation = opts.rotate;
+        if (opts.scale !== undefined && opts.scale !== '') toObj.scale = opts.scale;
+        if (opts.opacity !== undefined && opts.opacity !== '') toObj.opacity = opts.opacity;
+        if (opts.blur !== undefined && opts.blur !== '') toObj.filter = `blur(${opts.blur}px)`;
+        const fromObj = {};
+        if (opts.startX !== undefined && opts.startX !== '') fromObj.x = opts.startX;
+        if (opts.startY !== undefined && opts.startY !== '') fromObj.y = opts.startY;
+        if (opts.startRotate !== undefined && opts.startRotate !== '') fromObj.rotation = opts.startRotate;
+        if (opts.startScale !== undefined && opts.startScale !== '') fromObj.scale = opts.startScale;
+        if (opts.startOpacity !== undefined && opts.startOpacity !== '') fromObj.opacity = opts.startOpacity;
+        if (opts.startBlur !== undefined && opts.startBlur !== '') fromObj.filter = `blur(${opts.startBlur}px)`;
+        return {
+          ...base,
+          from: fromObj,
+          to: toObj,
+          yoyo: true,
+          repeat: -1,
+          ease: 'sine.inOut'
+        };
+      }
+      default:
+        return { ...base, from: { opacity: 0 }, to: { opacity: 1 }, yoyo: true, repeat: -1 };
+    }
+  }
+
+  function getHoverVars(effect, opts) {
+    const { duration = 0.8, delay = 0, ease = 'power2.out', intensity = 1 } = opts;
+    const base = { duration, delay, ease };
+    switch (effect) {
+      // --- Premium Hover Presets ---
+      case 'micro-scale':
+      case 'scale-up': // legacy fallback
+        return { ...base, to: { scale: 1 + 0.03 * intensity } };
+      case 'scale-down': // legacy fallback
+        return { ...base, to: { scale: 1 - 0.03 * intensity } };
+      case 'tactile-press':
+      case 'push': // legacy fallback
+        return { ...base, to: { y: 2 * intensity, scale: 1 - 0.04 * intensity } };
+      case 'soft-elevate':
+      case 'lift': // legacy fallback
+        return { ...base, to: { y: -4 * intensity, boxShadow: '0px 12px 30px rgba(0,0,0,0.06)' } };
+      case '3d-float':
+        return { ...base, to: { y: -3 * intensity, rotationX: 2 * intensity, rotationY: -2 * intensity, transformPerspective: 1000 } };
+      case 'focus-reveal':
+        return { ...base, to: { scale: 1 + 0.02 * intensity, opacity: 1, filter: 'blur(0px)' } };
+      case 'float-blur':
+        return { ...base, to: { y: -4 * intensity, scale: 1 + 0.02 * intensity, filter: `blur(${4 * intensity}px)` } };
+      case 'skew-press':
+        return { ...base, to: { y: 2 * intensity, scale: 1 - 0.02 * intensity, skewX: -2 * intensity } };
+      case 'magnetic-pull':
+        return { ...base, to: { x: -2 * intensity, y: -2 * intensity, rotation: -1 * intensity } };
+      case 'cinematic-zoom':
+        // Override the duration to be very slow and cinematic
+        return { ...base, duration: Math.max(duration, 1.2), ease: "power1.out", to: { scale: 1 + 0.05 * intensity } };
+      case 'glow': // legacy fallback
+        return { ...base, to: { filter: `drop-shadow(0px 0px 15px rgba(255, 255, 255, ${0.5 * intensity}))` } };
+      case 'wiggle': // legacy fallback
+        return { ...base, to: { rotation: 4 * intensity, ease: "elastic.out(2, 0.2)" } };
+      // --- Custom Transform ---
+      case 'custom-transform': {
+        const toObj = {};
+        if (opts.x !== undefined && opts.x !== '') toObj.x = opts.x;
+        if (opts.y !== undefined && opts.y !== '') toObj.y = opts.y;
+        if (opts.rotate !== undefined && opts.rotate !== '') toObj.rotation = opts.rotate;
+        if (opts.scale !== undefined && opts.scale !== '') toObj.scale = opts.scale;
+        if (opts.opacity !== undefined && opts.opacity !== '') toObj.opacity = opts.opacity;
+        if (opts.blur !== undefined && opts.blur !== '') toObj.filter = `blur(${opts.blur}px)`;
+        const fromObj = {};
+        if (opts.startX !== undefined && opts.startX !== '') fromObj.x = opts.startX;
+        if (opts.startY !== undefined && opts.startY !== '') fromObj.y = opts.startY;
+        if (opts.startRotate !== undefined && opts.startRotate !== '') fromObj.rotation = opts.startRotate;
+        if (opts.startScale !== undefined && opts.startScale !== '') fromObj.scale = opts.startScale;
+        if (opts.startOpacity !== undefined && opts.startOpacity !== '') fromObj.opacity = opts.startOpacity;
+        if (opts.startBlur !== undefined && opts.startBlur !== '') fromObj.filter = `blur(${opts.startBlur}px)`;
+        return { ...base, from: fromObj, to: toObj };
+      }
+      default:
+        return { ...base, to: { scale: 1 + 0.05 * intensity } };
+    }
+  }
+
+const activeIdleTimelines = new Map();
+  const hoverTimelines = new Map();
+
+  function initAdvancedAnimations() {
+    buildNamedElementRegistry();
+
+    const hosts = document.querySelectorAll('.supercraft-advanced-host');
+
+    hosts.forEach((host) => {
+      if (host.dataset.advancedInit === 'true') {
+        return;
+      }
+
+      let configRows;
+      try {
+        const raw = host.dataset.supercraftAdvanced;
+        if (!raw) return;
+        configRows = JSON.parse(raw);
+      } catch (e) {
+        console.warn('Failed to parse data-supercraft-advanced:', e);
+        return;
+      }
+
+      if (!Array.isArray(configRows) || configRows.length === 0) return;
+
+      configRows.forEach((row, idx) => {
+        const triggerMode = row.triggerElementMode || 'self';
+        const triggerKey = row.triggerNamed || '';
+        const animMode = row.animatedElementMode || 'self';
+        const animKey = row.animatedNamed || '';
+        const effect = row.effect || 'fade';
+        const animationType = row.animationType || 'simple';
+        const scrollTriggerPoint = row.scroll_trigger || 'top 85%';
+        const duration = (row.duration !== undefined && row.duration !== null && row.duration !== '') ? parseFloat(row.duration) : (row.trigger === 'hover' ? 0.1 : 0.8);
+        const delay = (row.delay !== undefined && row.delay !== null && row.delay !== '') ? parseFloat(row.delay) : 0;
+        const ease = row.ease || 'power2.out';
+        const intensity = (row.intensity !== undefined && row.intensity !== null && row.intensity !== '') ? parseFloat(row.intensity) : 1;
+        const speed = (row.speed !== undefined && row.speed !== null && row.speed !== '') ? parseFloat(row.speed) : 1;
+
+        const resolvedTriggerEls = resolveElement(triggerMode, triggerKey, host);
+        const resolvedTargetEls = resolveElement(animMode, animKey, host);
+        const triggerEls = Array.isArray(resolvedTriggerEls) ? resolvedTriggerEls : [resolvedTriggerEls].filter(Boolean);
+        const targetEls = Array.isArray(resolvedTargetEls) ? resolvedTargetEls : [resolvedTargetEls].filter(Boolean);
+
+        if (!triggerEls.length || !targetEls.length) return;
+
+        const isIdleLoop = row.trigger === 'idle_loop';
+        const isScrollTrigger = row.trigger === 'scroll_into_view';
+        const isHover = row.trigger === 'hover';
+        const isStaticState = row.trigger === 'static_state';
+        const animKeyId = `${host.dataset.supercraftAdvanced}_${idx}`;
+
+        if (isScrollTrigger && animationType !== 'simple') {
+          handleScrollIntoViewAdvanced(row, triggerEls, targetEls, animationType, {
+            duration,
+            delay,
+            ease,
+            intensity,
+            speed,
+            scrollPreset: row.scrollPreset,
+            imageDirection: row.imageDirection,
+            containerDirection: row.containerDirection,
+            splitMode: row.splitMode,
+            scrollTriggerPoint,
+            x: row.x,
+            y: row.y,
+            rotate: row.rotate,
+            scale: row.scale,
+            opacity: row.opacity,
+            blur: row.blur,
+            startX: row.startX,
+            startY: row.startY,
+            startRotate: row.startRotate,
+            startScale: row.startScale,
+            startOpacity: row.startOpacity,
+            startBlur: row.startBlur,
+          });
+          return;
+        }
+
+        const applyStaticState = () => {
+          const vars = {};
+          if (row.x !== undefined && row.x !== '') vars.x = row.x;
+          if (row.y !== undefined && row.y !== '') vars.y = row.y;
+          if (row.rotate !== undefined && row.rotate !== '') vars.rotation = row.rotate;
+          if (row.scale !== undefined && row.scale !== '') vars.scale = row.scale;
+          if (row.opacity !== undefined && row.opacity !== '') vars.opacity = row.opacity;
+          if (row.blur !== undefined && row.blur !== '') vars.filter = `blur(${row.blur}px)`;
+          if (Object.keys(vars).length > 0) {
+            gsap.set(targetEls, vars);
+          }
+        };
+
+        const applyIdleLoop = () => {
+          if (activeIdleTimelines.has(animKeyId)) {
+            const existingTl = activeIdleTimelines.get(animKeyId);
+            if (existingTl && existingTl.paused()) {
+              existingTl.play();
+            }
+            return;
+          }
+
+          targetEls.forEach((el) => {
+            el.style.transition = 'none';
+            el.style.willChange = 'transform, opacity, filter';
+          });
+
+          const transforms = getPresetTransforms(effect, { duration, delay, ease, intensity, ...row });
+          const tl = gsap.timeline({ repeat: -1, yoyo: transforms.yoyo || false, paused: true });
+          targetEls.forEach((el) => {
+            tl.fromTo(el, transforms.from, {
+              ...transforms.to,
+              duration: transforms.duration / speed,
+              ease: transforms.ease
+            }, 0);
+          });
+          activeIdleTimelines.set(animKeyId, tl);
+          tl.play();
+        };
+
+        const applyScrollTrigger = () => {
+          const transforms = getPresetTransforms(effect, { duration, delay, ease, intensity });
+          triggerEls.forEach((triggerItem, idx) => {
+            const targetItem = targetEls[idx] || targetEls[0];
+            if (targetItem) {
+              gsap.killTweensOf(targetItem);
+              gsap.fromTo(targetItem, transforms.from, {
+                ...transforms.to,
+                duration: transforms.duration / speed,
+                ease: transforms.ease,
+                scrollTrigger: {
+                  trigger: triggerItem,
+                  start: scrollTriggerPoint,
+                  toggleActions: 'play none none none'
+                }
+              });
+            }
+          });
+        };
+
+        const applyHover = () => {
+          targetEls.forEach((el) => {
+            el.style.transition = 'none';
+            el.style.willChange = 'transform, opacity, filter';
+          });
+
+          const transforms = getHoverVars(effect, {
+            duration,
+            delay,
+            ease,
+            intensity,
+            x: row.x,
+            y: row.y,
+            rotate: row.rotate,
+            scale: row.scale,
+            opacity: row.opacity,
+            blur: row.blur,
+            startX: row.startX,
+            startY: row.startY,
+            startRotate: row.startRotate,
+            startScale: row.startScale,
+            startOpacity: row.startOpacity,
+            startBlur: row.startBlur,
+          });
+
+          const handleMouseEnter = () => {
+            const key = `${animKeyId}_enter`;
+            if (hoverTimelines.has(key)) {
+              const tl = hoverTimelines.get(key);
+              if (tl) {
+                tl.restart();
+              }
+              return;
+            }
+            const tl = gsap.timeline();
+            targetEls.forEach((el) => {
+              if (transforms.from && Object.keys(transforms.from).length > 0) {
+                tl.fromTo(el, transforms.from, {
+                  ...transforms.to,
+                  duration: transforms.duration / speed,
+                  ease: transforms.ease
+                }, 0);
+              } else {
+                tl.to(el, {
+                  ...transforms.to,
+                  duration: transforms.duration / speed,
+                  ease: transforms.ease
+                }, 0);
+              }
+            });
+            hoverTimelines.set(key, tl);
+          };
+
+          const handleMouseLeave = () => {
+            const key = `${animKeyId}_enter`;
+            const tl = hoverTimelines.get(key);
+            if (tl && tl.progress() > 0) {
+              tl.reverse();
+            } else if (!tl) {
+              // Create reverse animation on first leave if no enter animation yet
+              const reverseTl = gsap.timeline();
+              targetEls.forEach((el) => {
+                reverseTl.to(el, {
+                  ...transforms.from,
+                  duration: transforms.duration / speed,
+                  ease: transforms.ease
+                }, 0);
+              });
+              hoverTimelines.set(`${animKeyId}_leave`, reverseTl);
+              reverseTl.play();
+            }
+          };
+
+          triggerEls.forEach((el) => {
+            el.addEventListener('mouseenter', handleMouseEnter);
+            el.addEventListener('mouseleave', handleMouseLeave);
+          });
+        };
+
+        if (isStaticState) {
+          applyStaticState();
+        } else if (isIdleLoop) {
+          const checkAllOutOfViewport = () => {
+            return triggerEls.every((el) => {
+              const rect = el.getBoundingClientRect();
+              return rect.top >= window.innerHeight || rect.bottom <= 0;
+            });
+          };
+
+          if (window.ScrollTrigger) {
+            triggerEls.forEach((triggerItem) => {
+              ScrollTrigger.create({
+                trigger: triggerItem,
+                start: 'top bottom',
+                end: 'bottom top',
+                onEnter: () => applyIdleLoop(),
+                onLeave: () => {
+                  if (checkAllOutOfViewport()) {
+                    const idleTl = activeIdleTimelines.get(animKeyId);
+                    if (idleTl) idleTl.pause();
+                  }
+                },
+                onEnterBack: () => applyIdleLoop(),
+                onLeaveBack: () => {
+                  if (checkAllOutOfViewport()) {
+                    const idleTl = activeIdleTimelines.get(animKeyId);
+                    if (idleTl) idleTl.pause();
+                  }
+                }
+              });
+            });
+          } else {
+            applyIdleLoop();
+          }
+        } else if (isScrollTrigger) {
+          applyScrollTrigger();
+        } else if (isHover) {
+          applyHover();
+        }
+      });
+
+      host.dataset.advancedInit = 'true';
+    });
+  }
+
+  // Handle advanced scroll_into_view with full animation types
+  function handleScrollIntoViewAdvanced(row, triggerEls, targetEls, animationType, opts) {
+    const duration = opts.duration || 1;
+    const delay = opts.delay || 0;
+    const ease = opts.ease || 'power2.out';
+    const keyId = `scroll_${animationType}_${Math.random().toString(36).substr(2, 9)}`;
+
+    switch (animationType) {
+      case 'scroll-transform':
+        const preset = opts.scrollPreset || 'fade-up';
+        const fromVars = {};
+
+        if (preset === 'custom') {
+          if (opts.startX !== undefined && opts.startX !== '') fromVars.x = opts.startX;
+          if (opts.startY !== undefined && opts.startY !== '') fromVars.y = opts.startY;
+          if (opts.startRotate !== undefined && opts.startRotate !== '') fromVars.rotation = opts.startRotate;
+          if (opts.startScale !== undefined && opts.startScale !== '') fromVars.scale = opts.startScale;
+          if (opts.startOpacity !== undefined && opts.startOpacity !== '') fromVars.opacity = opts.startOpacity;
+          if (opts.startBlur !== undefined && opts.startBlur !== '') fromVars.filter = `blur(${opts.startBlur}px)`;
+        } else {
+          const presetMap = {
+            'fade-left': { x: '-100px', y: 0, opacity: 0 },
+            'fade-right': { x: '100px', y: 0, opacity: 0 },
+            'fade-up': { x: 0, y: '50px', opacity: 0 },
+            'fade-down': { x: 0, y: '-50px', opacity: 0 },
+            'zoom-in': { scale: 0.8, opacity: 0 },
+            'zoom-out': { scale: 1.2, opacity: 0 },
+            'blur-fade': { opacity: 0, filter: 'blur(20px)' },
+            'blur-fade-left': { x: '-100px', opacity: 0, filter: 'blur(20px)' },
+            'blur-fade-right': { x: '100px', opacity: 0, filter: 'blur(20px)' },
+            'blur-fade-up': { y: '50px', opacity: 0, filter: 'blur(20px)' },
+            'blur-fade-down': { y: '-50px', opacity: 0, filter: 'blur(20px)' },
+            'blur-zoom-in': { scale: 0.8, opacity: 0, filter: 'blur(15px)' },
+            'blur-zoom-out': { scale: 1.2, opacity: 0, filter: 'blur(15px)' },
+            'fade': { opacity: 0 },
+          };
+          Object.assign(fromVars, presetMap[preset] || { opacity: 0, y: '50px' });
+        }
+        const finalDuration = duration / (opts.speed || 1);
+
+        const toVars = {
+          x: 0,
+          y: 0,
+          scale: 1,
+          opacity: 1,
+          filter: 'blur(0px)',
+        };
+
+        if (preset === 'custom') {
+          if (opts.x !== undefined && opts.x !== '') toVars.x = opts.x;
+          if (opts.y !== undefined && opts.y !== '') toVars.y = opts.y;
+          if (opts.rotate !== undefined && opts.rotate !== '') toVars.rotation = opts.rotate;
+          if (opts.scale !== undefined && opts.scale !== '') toVars.scale = opts.scale;
+          if (opts.opacity !== undefined && opts.opacity !== '') toVars.opacity = opts.opacity;
+          if (opts.blur !== undefined && opts.blur !== '') toVars.filter = `blur(${opts.blur}px)`;
+        }
+
+        triggerEls.forEach((triggerEl, idx) => {
+          const target = targetEls[idx] || targetEls[0];
+          if (!target) return;
+
+          gsap.killTweensOf(target);
+
+          // Clear any CSS transitions that interfere with GSAP easing
+          target.style.transition = 'none';
+          target.style.willChange = 'transform, opacity, filter';
+
+          // Set initial state immediately
+          gsap.set(target, { ...fromVars, force3D: true, immediateRender: true });
+
+          // Create timeline for exact parity with default entrance
+          const tl = gsap.timeline({
+            scrollTrigger: {
+              trigger: triggerEl,
+              start: opts.scrollTriggerPoint || 'top 85%',
+              toggleActions: 'play none none none'
+            }
+          });
+
+          tl.to(target, {
+            ...toVars,
+            duration: finalDuration, 
+            ease: ease,
+            force3D: true
+          }, delay);
+        });
+        break;
+
+      case 'image-reveal':
+        const direction = opts.imageDirection || 'left';
+        targetEls.forEach((target, idx) => {
+          const trigger = triggerEls[idx] || triggerEls[0] || target;
+          const img = target.querySelector('img');
+          if (!img) return;
+          
+          gsap.killTweensOf(img);
+
+          const clipMap = {
+            left: 'inset(0% 0% 0% 100%)',
+            right: 'inset(0% 100% 0% 0%)',
+            top: 'inset(100% 0% 0% 0%)',
+            bottom: 'inset(0% 0% 100% 0%)',
+          };
+          const fullClip = 'inset(0% 0% 0% 0%)';
+
+          const tl = gsap.timeline({
+            scrollTrigger: {
+              trigger,
+              start: opts.scrollTriggerPoint || 'top 85%',
+              toggleActions: 'play none none none'
+            }
+          });
+          tl.fromTo(
+            target,
+            { clipPath: clipMap[direction], webkitClipPath: clipMap[direction], autoAlpha: 1 },
+            { clipPath: fullClip, webkitClipPath: fullClip, duration, ease },
+            delay
+          );
+          tl.from(img, { scale: 1.3, duration, ease }, delay);
+        });
+        break;
+
+      case 'container-reveal':
+        const contDir = opts.containerDirection || 'center';
+        const contClipMap = {
+          center: 'inset(50% 0% 50% 0%)',
+          left: 'inset(0% 0% 0% 100%)',
+          right: 'inset(0% 100% 0% 0%)',
+          top: 'inset(100% 0% 0% 0%)',
+          bottom: 'inset(0% 0% 100% 0%)',
+        };
+        const fullContClip = 'inset(0% 0% 0% 0%)';
+
+        targetEls.forEach((target, idx) => {
+          const trigger = triggerEls[idx] || triggerEls[0] || target;
+          gsap.fromTo(target,
+            { clipPath: contClipMap[contDir], webkitClipPath: contClipMap[contDir], autoAlpha: 1 },
+            {
+              clipPath: fullContClip,
+              webkitClipPath: fullContClip,
+              duration,
+              delay,
+              ease,
+              scrollTrigger: {
+                trigger: trigger,
+                start: opts.scrollTriggerPoint || 'top 85%',
+                toggleActions: 'play none none none'
+              }
+            }
+          );
+        });
+        break;
+
+      case 'split-text':
+        if (typeof window.SplitType !== 'function') {
+          console.warn('SplitType not loaded for split-text advanced animation');
+          return;
+        }
+        const splitMode = opts.splitMode || 'chars';
+        const isWord = splitMode === 'words';
+        const offset = 30;
+
+        targetEls.forEach((target, idx) => {
+          const trigger = triggerEls[idx] || triggerEls[0] || target;
+          const textTarget = target.matches('.elementor-heading-title, h1, h2, h3, h4, h5, h6, p, span')
+            ? target
+            : target.querySelector('.elementor-heading-title, h1, h2, h3, h4, h5, h6, p, span') || target;
+
+          const split = new SplitType(textTarget, {
+            types: isWord ? 'words' : 'words, chars',
+            whitespace: 'preserve',
+          });
+
+          const items = isWord ? split.words : split.chars;
+          if (!items || !items.length) return;
+
+          items.forEach((el) => {
+            el.style.display = isWord ? 'inline-block' : 'inline-block';
+          });
+
+          gsap.from(items, {
+            y: offset,
+            opacity: 0,
+            duration,
+            stagger: 0.05,
+            ease,
+            scrollTrigger: {
+              trigger: trigger,
+              start: opts.scrollTriggerPoint || 'top 85%',
+              toggleActions: 'play none none none'
+            }
+          });
+        });
+        break;
+
+      default:
+        // Simple effects fallback
+        const transforms = getPresetTransforms(effect, { duration, delay, ease, intensity: opts.intensity });
+        triggerEls.forEach((triggerItem, idx) => {
+          const targetItem = targetEls[idx] || targetEls[0];
+          if (targetItem) {
+            gsap.fromTo(targetItem, transforms.from, {
+              ...transforms.to,
+              duration: transforms.duration / opts.speed,
+              ease: transforms.ease,
+              scrollTrigger: {
+                trigger: triggerItem,
+                start: opts.scrollTriggerPoint || 'top 85%',
+                toggleActions: 'play none none none'
+              }
+            });
+          }
+        });
+    }
+  }
+
+  /* ==========================================
      MASTER INIT
      ========================================== */
   function initAllAnimations() {
@@ -1209,6 +1820,7 @@ const lineByLine = parseBool(wrapper.dataset.scrollFillLine || 'false');
     initScrollTransformScrub();
     initImageReveal();
     initContainerReveal();
+    initAdvancedAnimations();
   }
 
   initAllAnimations();
@@ -1220,4 +1832,5 @@ const lineByLine = parseBool(wrapper.dataset.scrollFillLine || 'false');
   window.initScrollTransformScrub = initScrollTransformScrub;
   window.initImageReveal = initImageReveal;
   window.initContainerReveal = initContainerReveal;
+  window.initAdvancedAnimations = initAdvancedAnimations;
 });

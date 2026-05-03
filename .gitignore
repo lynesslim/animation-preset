@@ -1,6 +1,7 @@
 node_modules/
 .wp-env/
 local-plugins/
+local-themes/
 *.log
 .DS_Store
 __MACOSX/
