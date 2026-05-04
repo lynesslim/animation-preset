@@ -119,7 +119,7 @@ function supercraft_admin_menu() {
         add_submenu_page(
             'supercraft',
             'Supercraft Animations',
-            'Animations',
+            'Superanimation',
             'manage_options',
             'supercraft-animations',
             'supercraft_render_admin_page'
@@ -137,7 +137,7 @@ function supercraft_admin_menu() {
         add_submenu_page(
             'supercraft',
             'Supercraft Animations',
-            'Animations',
+            'Superanimation',
             'manage_options',
             'supercraft-animations',
             'supercraft_render_admin_page'
