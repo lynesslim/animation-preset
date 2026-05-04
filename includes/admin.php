@@ -105,14 +105,43 @@ function supercraft_render_admin_page() {
 }
 
 function supercraft_admin_menu() {
-    add_menu_page(
-        'Supercraft Settings',
-        'Supercraft Animations',
-        'manage_options',
-        'supercraft-animations',
-        'supercraft_render_admin_page',
-        'dashicons-controls-play',
-        80
-    );
+    global $menu;
+
+    $supercraft_parent_exists = false;
+    foreach ($menu as $item) {
+        if (isset($item[0]) && strpos($item[0], 'Supercraft') !== false) {
+            $supercraft_parent_exists = true;
+            break;
+        }
+    }
+
+    if ($supercraft_parent_exists) {
+        add_submenu_page(
+            'supercraft',
+            'Supercraft Animations',
+            'Animations',
+            'manage_options',
+            'supercraft-animations',
+            'supercraft_render_admin_page'
+        );
+    } else {
+        add_menu_page(
+            'Supercraft Settings',
+            'Supercraft',
+            'manage_options',
+            'supercraft',
+            null,
+            'dashicons-controls-play',
+            80
+        );
+        add_submenu_page(
+            'supercraft',
+            'Supercraft Animations',
+            'Animations',
+            'manage_options',
+            'supercraft-animations',
+            'supercraft_render_admin_page'
+        );
+    }
 }
 add_action('admin_menu', 'supercraft_admin_menu');
