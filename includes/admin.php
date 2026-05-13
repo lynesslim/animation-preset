@@ -4,10 +4,6 @@ if (!defined('ABSPATH')) {
 }
 
 function supercraft_admin_notice() {
-    if (!defined('SUPERCRAFT_SUPABASE_URL')) {
-        return;
-    }
-
     $status = get_option('supercraft_validation_status', 'not_set');
     if ($status === 'invalid') {
         echo '<div class="notice notice-warning is-dismissible">
@@ -22,7 +18,6 @@ function supercraft_render_admin_page() {
     $embed_code = get_option('supercraft_embed_code', '');
     $last_validated = get_option('supercraft_last_validated', '');
     $lenis_enabled = get_option('supercraft_lenis_enabled', '1');
-    $show_all_tabs = defined('SUPERCRAFT_SUPABASE_URL');
 
     ?>
     <div class="wrap">
@@ -31,12 +26,6 @@ function supercraft_render_admin_page() {
         <?php if (isset($_GET['updated'])): ?>
             <div class="notice notice-success is-dismissible">
                 <p>Settings saved.</p>
-            </div>
-        <?php endif; ?>
-
-        <?php if (!$show_all_tabs): ?>
-            <div class="notice notice-error">
-                <p>Configuration file missing.</p>
             </div>
         <?php endif; ?>
 
@@ -94,12 +83,18 @@ function supercraft_render_admin_page() {
                 <input type="hidden" name="supercraft_embed_code" value="<?php echo esc_attr($embed_code); ?>">
             <?php endif; ?>
             <input type="submit" name="submit" class="button button-primary" value="Save Settings" onclick="this.form.action.value='supercraft_save_settings'">
-            <?php if ($status === 'valid'): ?>
-                <?php submit_button('Unlink Embed Code', 'delete', 'submit', false, ['onclick' => 'return confirm("Are you sure you want to unlink this embed code?");']); ?>
-            <?php else: ?>
+            <?php if ($status !== 'valid'): ?>
                 <?php submit_button('Save & Validate'); ?>
             <?php endif; ?>
         </form>
+
+        <?php if ($status === 'valid'): ?>
+            <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="margin-top: 12px;">
+                <?php wp_nonce_field('supercraft_unlink'); ?>
+                <input type="hidden" name="action" value="supercraft_unlink">
+                <?php submit_button('Unlink Embed Code', 'delete', 'submit', false, ['onclick' => 'return confirm("Are you sure you want to unlink this embed code?");']); ?>
+            </form>
+        <?php endif; ?>
     </div>
     <?php
 }

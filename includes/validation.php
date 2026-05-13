@@ -8,10 +8,6 @@ function supercraft_is_validated() {
         return true;
     }
 
-    if (!defined('SUPERCRAFT_SUPABASE_URL')) {
-        return false;
-    }
-
     $status = get_option('supercraft_validation_status', 'not_set');
     return $status === 'valid';
 }
@@ -29,21 +25,24 @@ function supercraft_get_last_validated() {
 }
 
 function supercraft_validate_embed_code_standalone($embed_code) {
-    if (empty($embed_code) || !defined('SUPERCRAFT_SUPABASE_URL')) {
+    if (empty($embed_code)) {
         return false;
     }
 
-    $code_col = defined('SUPERCRAFT_CODE_COLUMN') ? SUPERCRAFT_CODE_COLUMN : 'embed_public_key';
+    $endpoint = defined('SUPERCRAFT_VALIDATION_ENDPOINT')
+        ? SUPERCRAFT_VALIDATION_ENDPOINT
+        : 'https://superapp.supercraft.my/api/public/validate-embed';
     $plugin_name = defined('SUPERCRAFT_PLUGIN_NAME') ? SUPERCRAFT_PLUGIN_NAME : 'supercraft-superanimation';
-    $domain = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
 
-    $url = SUPERCRAFT_SUPABASE_URL . '/rest/v1/' . SUPERCRAFT_TABLE . '?select=id&' . $code_col . '=eq.' . urlencode($embed_code);
-
-    $response = wp_remote_get($url, [
+    $response = wp_remote_post($endpoint, [
         'headers' => [
-            'apikey' => SUPERCRAFT_SUPABASE_ANON_KEY,
-            'Authorization' => 'Bearer ' . SUPERCRAFT_SUPABASE_ANON_KEY,
+            'Content-Type' => 'application/json',
         ],
+        'body' => wp_json_encode([
+            'embed_code' => $embed_code,
+            'plugin_name' => $plugin_name,
+            'domain' => get_site_url(),
+        ]),
         'timeout' => 15,
     ]);
 
@@ -51,50 +50,43 @@ function supercraft_validate_embed_code_standalone($embed_code) {
         return false;
     }
 
-    $body = wp_remote_retrieve_body($response);
-    $data = json_decode($body, true);
-
-    if (empty($data) || !is_array($data)) {
+    $status_code = wp_remote_retrieve_response_code($response);
+    if ($status_code < 200 || $status_code >= 400) {
         return false;
     }
 
-    $project_id = $data[0]['id'];
+    $body = json_decode(wp_remote_retrieve_body($response), true);
+    return is_array($body) && !empty($body['valid']);
+}
 
-    $reg_url = SUPERCRAFT_SUPABASE_URL . '/rest/v1/project_plugin_registrations?project_id=eq.' . $project_id . '&plugin_name=eq.' . urlencode($plugin_name);
+function supercraft_delete_plugin_registration($embed_code) {
+    if (empty($embed_code)) {
+        return false;
+    }
 
-    $reg_response = wp_remote_get($reg_url, [
+    $endpoint = defined('SUPERCRAFT_DELETE_REGISTRATION_ENDPOINT')
+        ? SUPERCRAFT_DELETE_REGISTRATION_ENDPOINT
+        : 'https://superapp.supercraft.my/api/public/validate-embed/delete-registration';
+    $plugin_name = defined('SUPERCRAFT_PLUGIN_NAME') ? SUPERCRAFT_PLUGIN_NAME : 'supercraft-superanimation';
+
+    $response = wp_remote_request($endpoint, [
+        'method' => 'DELETE',
         'headers' => [
-            'apikey' => SUPERCRAFT_SUPABASE_ANON_KEY,
-            'Authorization' => 'Bearer ' . SUPERCRAFT_SUPABASE_ANON_KEY,
+            'Content-Type' => 'application/json',
         ],
+        'body' => wp_json_encode([
+            'embed_code' => $embed_code,
+            'plugin_name' => $plugin_name,
+        ]),
         'timeout' => 15,
     ]);
 
-    $reg_body = wp_remote_retrieve_body($reg_response);
-    $reg_data = json_decode($reg_body, true);
-
-    if (!empty($reg_data) && is_array($reg_data)) {
-        $existing_domain = isset($reg_data[0]['registered_domain']) ? $reg_data[0]['registered_domain'] : '';
-        if (!empty($existing_domain) && $existing_domain !== $domain) {
-            return false;
-        }
-    } else {
-        $insert_response = wp_remote_post(SUPERCRAFT_SUPABASE_URL . '/rest/v1/project_plugin_registrations', [
-            'headers' => [
-                'apikey' => SUPERCRAFT_SUPABASE_ANON_KEY,
-                'Authorization' => 'Bearer ' . SUPERCRAFT_SUPABASE_ANON_KEY,
-                'Content-Type' => 'application/json',
-                'Prefer' => 'return=minimal',
-            ],
-            'body' => json_encode([
-                'project_id' => $project_id,
-                'plugin_name' => $plugin_name,
-                'registered_domain' => $domain,
-            ]),
-        ]);
+    if (is_wp_error($response)) {
+        return false;
     }
 
-    return true;
+    $status_code = wp_remote_retrieve_response_code($response);
+    return $status_code >= 200 && $status_code < 400;
 }
 
 add_action('admin_post_supercraft_save_embed_code', function() {
@@ -137,57 +129,14 @@ add_action('admin_post_supercraft_validate_now', function() {
 add_action('admin_post_supercraft_unlink', function() {
     check_admin_referer('supercraft_unlink');
     $code = get_option('supercraft_embed_code', '');
-    $project_id = '';
     if (!empty($code)) {
-        $code_col = defined('SUPERCRAFT_CODE_COLUMN') ? SUPERCRAFT_CODE_COLUMN : 'embed_public_key';
-        $url = SUPERCRAFT_SUPABASE_URL . '/rest/v1/' . SUPERCRAFT_TABLE . '?select=id&' . $code_col . '=eq.' . urlencode($code);
-        $response = wp_remote_get($url, [
-            'headers' => [
-                'apikey' => SUPERCRAFT_SUPABASE_ANON_KEY,
-                'Authorization' => 'Bearer ' . SUPERCRAFT_SUPABASE_ANON_KEY,
-            ],
-            'timeout' => 15,
-        ]);
-        $body = wp_remote_retrieve_body($response);
-        $data = json_decode($body, true);
-        if (!empty($data) && isset($data[0]['id'])) {
-            $project_id = $data[0]['id'];
-        }
-    }
-    if (!empty($project_id) && defined('SUPERCRAFT_PLUGIN_NAME')) {
-        $plugin_name = SUPERCRAFT_PLUGIN_NAME;
-        $delete_url = SUPERCRAFT_SUPABASE_URL . '/rest/v1/project_plugin_registrations?project_id=eq.' . $project_id . '&plugin_name=eq.' . urlencode($plugin_name);
-        wp_remote_request($delete_url, [
-            'method' => 'DELETE',
-            'headers' => [
-                'apikey' => SUPERCRAFT_SUPABASE_ANON_KEY,
-                'Authorization' => 'Bearer ' . SUPERCRAFT_SUPABASE_ANON_KEY,
-                'Prefer' => 'return=minimal',
-            ],
-        ]);
+        supercraft_delete_plugin_registration($code);
     }
     update_option('supercraft_embed_code', '');
     update_option('supercraft_validation_status', 'not_set');
     update_option('supercraft_last_validated', '');
-    $lenis_enabled = isset($_POST['supercraft_lenis_enabled']) ? '1' : '0';
-    update_option('supercraft_lenis_enabled', $lenis_enabled);
     wp_redirect(add_query_arg('updated', 'true', wp_get_referer()));
     exit;
 });
 
-function supercraft_schedule_validation() {
-    if (!wp_next_scheduled('supercraft_daily_validation')) {
-        wp_schedule_event(time(), 'daily', 'supercraft_daily_validation');
-    }
-}
-add_action('wp', 'supercraft_schedule_validation');
 
-function supercraft_daily_validation_event() {
-    $code = get_option('supercraft_embed_code', '');
-    if (!empty($code)) {
-        $valid = supercraft_validate_embed_code_standalone($code);
-        update_option('supercraft_validation_status', $valid ? 'valid' : 'invalid');
-        update_option('supercraft_last_validated', current_time('mysql'));
-    }
-}
-add_action('supercraft_daily_validation', 'supercraft_daily_validation_event');
