@@ -227,9 +227,10 @@ function applyStartStateFromStyles(el) {
       settings.supercraft_named_enabled === 'yes' &&
       typeof settings.supercraft_named_label === 'string' &&
       settings.supercraft_named_label.trim() !== '';
+    const hasSectionTransition = settings.supercraft_section_transition_enabled === 'yes';
     const hasDecor = hasSupercraftDecorations($el); // only true when we previously applied
-    if (!cat && !hasAdvanced && !hasNamedElement && !hasDecor) return; // Not ours; do nothing
-    if (!cat && !hasAdvanced && !hasNamedElement && hasDecor) {
+    if (!cat && !hasAdvanced && !hasNamedElement && !hasSectionTransition && !hasDecor) return; // Not ours; do nothing
+    if (!cat && !hasAdvanced && !hasNamedElement && !hasSectionTransition && hasDecor) {
       stripAnimationClasses($el); // User cleared the setting; clean up our traces
       return;
     }
@@ -857,8 +858,10 @@ function applyStartStateFromStyles(el) {
       const currentCat = currentSettings.supercraft_anim_category || '';
       const currentHasDecor = hasSupercraftDecorations(view.$el);
 
+      const currentSectionTransition = currentSettings.supercraft_section_transition_enabled === 'yes';
+
       // Ignore non-Supercraft widgets entirely to avoid interfering with editor widgets (e.g. Tabs).
-      if (!currentCat && !currentHasDecor) {
+      if (!currentCat && !currentHasDecor && !currentSectionTransition) {
         return;
       }
 
