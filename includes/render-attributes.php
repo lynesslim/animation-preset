@@ -422,6 +422,28 @@ function supercraft_apply_attrs($element) {
     }
     }
 
+    if (!empty($settings['supercraft_section_transition_enabled'])) {
+        $classes[] = 'supercraft-section-transition';
+        $preset = $settings['supercraft_section_transition_preset'] ?? 'vertical-shutter';
+        $data_attrs['data-st-preset'] = esc_attr($preset);
+        
+        if (!empty($settings['supercraft_section_transition_start'])) {
+            $data_attrs['data-st-start'] = esc_attr($settings['supercraft_section_transition_start']);
+        }
+        if (!empty($settings['supercraft_section_transition_end'])) {
+            $data_attrs['data-st-end'] = esc_attr($settings['supercraft_section_transition_end']);
+        }
+        if ($settings['supercraft_section_transition_scrub'] !== '' && $settings['supercraft_section_transition_scrub'] !== null) {
+            $data_attrs['data-st-scrub'] = esc_attr($settings['supercraft_section_transition_scrub']);
+        }
+        if ($settings['supercraft_section_transition_slats'] !== '' && $settings['supercraft_section_transition_slats'] !== null) {
+            $data_attrs['data-st-slats'] = esc_attr($settings['supercraft_section_transition_slats']);
+        }
+        if (!empty($settings['supercraft_section_transition_fallback_color'])) {
+            $data_attrs['data-st-fallback'] = esc_attr($settings['supercraft_section_transition_fallback_color']);
+        }
+    }
+
     $named_enabled = !empty($settings['supercraft_named_enabled']);
     $named_label = $settings['supercraft_named_label'] ?? '';
     if ($named_enabled && !empty($named_label)) {

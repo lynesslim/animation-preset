@@ -1521,6 +1521,135 @@ const lineByLine = parseBool(wrapper.dataset.scrollFillLine || 'false');
   }
 
   /* ==========================================
+     SECTION TRANSITIONS
+     ========================================== */
+  function initSectionTransitions() {
+    function isTransparent(c) {
+      return !c || c === 'transparent' || c === 'rgba(0, 0, 0, 0)' || c === 'rgba(0,0,0,0)';
+    }
+
+    function resolveFill(el, fallback) {
+      var cur = el;
+      while (cur && cur !== document.documentElement) {
+        var bg = getComputedStyle(cur).backgroundColor;
+        if (!isTransparent(bg)) return bg;
+        cur = cur.parentElement;
+      }
+      return fallback || 'rgb(255,255,255)';
+    }
+
+    function findNextContainer(section) {
+      var next = section.nextElementSibling;
+      if (next) return next;
+      var parent = section.parentElement;
+      while (parent && parent !== document.body) {
+        var parentNext = parent.nextElementSibling;
+        if (parentNext) return parentNext;
+        parent = parent.parentElement;
+      }
+      return null;
+    }
+
+    function buildShutter(section, count, fill) {
+      section.style.position = 'relative';
+      section.style.overflow = 'hidden';
+      section.style.isolation = 'isolate';
+
+      var layer = document.createElement('div');
+      Object.assign(layer.style, {
+        position: 'absolute',
+        left: '0',
+        right: '0',
+        bottom: '0',
+        top: 'auto',
+        height: '100%',
+        zIndex: '9999',
+        pointerEvents: 'none',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      });
+      layer.setAttribute('aria-hidden', 'true');
+      layer.setAttribute('data-st-layer', 'true');
+      section.appendChild(layer);
+
+      var slats = Array.from({ length: count }, function () {
+        var row = document.createElement('div');
+        Object.assign(row.style, {
+          flex: '1 1 0',
+          minHeight: '0',
+          overflow: 'visible',
+          position: 'relative',
+        });
+        var slat = document.createElement('div');
+        Object.assign(slat.style, {
+          width: '100%',
+          height: 'calc(100% + 4px)',
+          marginTop: '-2px',
+          background: fill,
+          transformOrigin: '50% 100%',
+          backfaceVisibility: 'hidden',
+          willChange: 'transform',
+        });
+        row.appendChild(slat);
+        layer.appendChild(row);
+        return slat;
+      });
+
+      gsap.set(slats, { scaleY: 0 });
+      return { layer: layer, slats: slats };
+    }
+
+    const sections = document.querySelectorAll('.supercraft-section-transition');
+
+    sections.forEach(function (section) {
+      if (section.dataset.stInit === 'true') return;
+
+      // Remove any previously injected shutter layers (for editor re-init)
+      section.querySelectorAll('[data-st-layer]').forEach(function (el) { el.remove(); });
+
+      const preset = section.dataset.stPreset || 'vertical-shutter';
+      const scrollStart = section.dataset.stStart || 'bottom bottom+=20%';
+      const scrollEnd = section.dataset.stEnd || '+=100%';
+      const scrub = parseFloat(section.dataset.stScrub || '1');
+      const fallback = section.dataset.stFallback || 'rgb(255,255,255)';
+
+      if (preset === 'vertical-shutter') {
+        const next = findNextContainer(section);
+        if (!next) {
+          section.dataset.stInit = 'true';
+          return;
+        }
+
+        const slatCount = parseInt(section.dataset.stSlats || '16', 10);
+        const fill = resolveFill(next, fallback);
+        const result = buildShutter(section, slatCount, fill);
+        const layer = result.layer;
+        const slats = result.slats;
+
+        gsap.timeline({
+          defaults: { ease: 'power3.out' },
+          scrollTrigger: {
+            trigger: section,
+            start: scrollStart,
+            end: function () {
+              return '+=' + Math.max(layer.offsetHeight, 1);
+            },
+            scrub: scrub,
+            invalidateOnRefresh: true,
+          },
+        }).to(slats, {
+          scaleY: 1,
+          duration: 0.03,
+          stagger: { each: 0.001, from: 'end' },
+        }, 0);
+      }
+
+      section.dataset.stInit = 'true';
+    });
+  }
+
+  /* ==========================================
      ADVANCED ANIMATIONS
      Data-driven animations using data attributes emitted by PHP
      ========================================== */
@@ -2142,6 +2271,7 @@ const activeIdleTimelines = new Map();
     initImageReveal();
     initContainerReveal();
     initVideoGSAP();
+    initSectionTransitions();
     initAdvancedAnimations();
   }
 

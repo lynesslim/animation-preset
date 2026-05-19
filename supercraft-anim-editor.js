@@ -84,7 +84,8 @@ function applyStartStateFromStyles(el) {
     'blur-fade-down',
     'blur-zoom-in',
     'blur-zoom-out',
-    'fade'
+    'fade',
+    'supercraft-section-transition'
   ];
 
   function hasSupercraftDecorations($el) {
@@ -193,7 +194,14 @@ function applyStartStateFromStyles(el) {
       'data-supercraft-named',
       'data-supercraft-name',
       'data-supercraft-key',
-      'data-supercraft-advanced'
+      'data-supercraft-advanced',
+      'data-st-preset',
+      'data-st-start',
+      'data-st-end',
+      'data-st-scrub',
+      'data-st-slats',
+      'data-st-fallback',
+      'data-st-init'
     ].forEach((attr) => $el.removeAttr(attr));
     $el.removeAttr('data-supercraft-applied');
   }
@@ -247,6 +255,26 @@ function applyStartStateFromStyles(el) {
         $el.attr('data-supercraft-named', 'true');
         $el.attr('data-supercraft-name', label);
         $el.attr('data-supercraft-key', key);
+      }
+    }
+
+    if (settings.supercraft_section_transition_enabled === 'yes') {
+      $el.addClass('supercraft-section-transition');
+      $el.attr('data-st-preset', settings.supercraft_section_transition_preset || 'vertical-shutter');
+      if (settings.supercraft_section_transition_start) {
+        $el.attr('data-st-start', settings.supercraft_section_transition_start);
+      }
+      if (settings.supercraft_section_transition_end) {
+        $el.attr('data-st-end', settings.supercraft_section_transition_end);
+      }
+      if (settings.supercraft_section_transition_scrub !== '' && settings.supercraft_section_transition_scrub !== null) {
+        $el.attr('data-st-scrub', settings.supercraft_section_transition_scrub);
+      }
+      if (settings.supercraft_section_transition_slats !== '' && settings.supercraft_section_transition_slats !== null) {
+        $el.attr('data-st-slats', settings.supercraft_section_transition_slats);
+      }
+      if (settings.supercraft_section_transition_fallback_color) {
+        $el.attr('data-st-fallback', settings.supercraft_section_transition_fallback_color);
       }
     }
 
@@ -853,7 +881,7 @@ function applyStartStateFromStyles(el) {
           
           // Remove init flags
           document.querySelectorAll(
-            '[data-scroll-transform-init], [data-scroll-transform-scrub-init], [data-image-reveal-init], [data-container-reveal-init], [data-video-gsap-init], [data-scroll-fill-init], [data-anim-init]'
+            '[data-scroll-transform-init], [data-scroll-transform-scrub-init], [data-image-reveal-init], [data-container-reveal-init], [data-video-gsap-init], [data-scroll-fill-init], [data-anim-init], [data-st-init]'
           ).forEach(el => {
             delete el.dataset.scrollTransformInit;
             delete el.dataset.scrollTransformScrubInit;
@@ -862,6 +890,7 @@ function applyStartStateFromStyles(el) {
             delete el.dataset.videoGsapInit;
             delete el.dataset.scrollFillInit;
             delete el.dataset.animInit;
+            delete el.dataset.stInit;
           });
           
           window.initAllAnimations();
@@ -948,7 +977,7 @@ function applyStartStateFromStyles(el) {
     if (window.ScrollTrigger) {
       ScrollTrigger.getAll().forEach((st) => st.kill());
     }
-    document.querySelectorAll('[data-advanced-init], [data-scroll-transform-init], [data-scroll-transform-scrub-init], [data-image-reveal-init], [data-container-reveal-init], [data-video-gsap-init], [data-scroll-fill-init], [data-anim-init]').forEach((el) => {
+    document.querySelectorAll('[data-advanced-init], [data-scroll-transform-init], [data-scroll-transform-scrub-init], [data-image-reveal-init], [data-container-reveal-init], [data-video-gsap-init], [data-scroll-fill-init], [data-anim-init], [data-st-init]').forEach((el) => {
       delete el.dataset.scrollTransformInit;
       delete el.dataset.scrollTransformScrubInit;
       delete el.dataset.imageRevealInit;
@@ -957,6 +986,7 @@ function applyStartStateFromStyles(el) {
       delete el.dataset.scrollFillInit;
       delete el.dataset.animInit;
       delete el.dataset.advancedInit;
+      delete el.dataset.stInit;
     });
     if (window.initAllAnimations) {
       window.initAllAnimations();

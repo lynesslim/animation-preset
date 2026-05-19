@@ -142,6 +142,102 @@ $supercraft_controls_callback = function ($element, $section_id) {
         ]
     );
 
+    $element->add_control(
+        'supercraft_section_transition_enabled',
+        [
+            'label' => __('Enable Section Transition', 'supercraft-anim'),
+            'type' => \Elementor\Controls_Manager::SWITCHER,
+            'return_value' => 'yes',
+            'default' => '',
+            'frontend_available' => false,
+        ]
+    );
+
+    $element->add_control(
+        'supercraft_section_transition_preset',
+        [
+            'label' => __('Transition Preset', 'supercraft-anim'),
+            'type' => \Elementor\Controls_Manager::SELECT,
+            'default' => 'vertical-shutter',
+            'options' => [
+                'vertical-shutter' => __('Vertical Shutter', 'supercraft-anim'),
+            ],
+            'frontend_available' => false,
+            'condition' => [
+                'supercraft_section_transition_enabled' => 'yes',
+            ],
+        ]
+    );
+
+    $element->add_control(
+        'supercraft_section_transition_start',
+        [
+            'label' => __('Scroll Start', 'supercraft-anim'),
+            'type' => \Elementor\Controls_Manager::TEXT,
+            'default' => 'bottom bottom+=20%',
+            'frontend_available' => false,
+            'condition' => [
+                'supercraft_section_transition_enabled' => 'yes',
+            ],
+        ]
+    );
+
+    $element->add_control(
+        'supercraft_section_transition_end',
+        [
+            'label' => __('Scroll End', 'supercraft-anim'),
+            'type' => \Elementor\Controls_Manager::TEXT,
+            'default' => '+=100%',
+            'frontend_available' => false,
+            'condition' => [
+                'supercraft_section_transition_enabled' => 'yes',
+            ],
+        ]
+    );
+
+    $element->add_control(
+        'supercraft_section_transition_scrub',
+        [
+            'label' => __('Scrub Smoothing', 'supercraft-anim'),
+            'type' => \Elementor\Controls_Manager::NUMBER,
+            'default' => 1,
+            'step' => 0.1,
+            'frontend_available' => false,
+            'condition' => [
+                'supercraft_section_transition_enabled' => 'yes',
+            ],
+        ]
+    );
+
+    $element->add_control(
+        'supercraft_section_transition_slats',
+        [
+            'label' => __('Number of Slats', 'supercraft-anim'),
+            'type' => \Elementor\Controls_Manager::NUMBER,
+            'default' => 16,
+            'min' => 1,
+            'max' => 100,
+            'frontend_available' => false,
+            'condition' => [
+                'supercraft_section_transition_enabled' => 'yes',
+                'supercraft_section_transition_preset' => 'vertical-shutter',
+            ],
+        ]
+    );
+
+    $element->add_control(
+        'supercraft_section_transition_fallback_color',
+        [
+            'label' => __('Fallback Fill Color', 'supercraft-anim'),
+            'type' => \Elementor\Controls_Manager::COLOR,
+            'default' => 'rgb(255,255,255)',
+            'frontend_available' => false,
+            'condition' => [
+                'supercraft_section_transition_enabled' => 'yes',
+            ],
+        ]
+    );
+
     $element->start_controls_tabs('supercraft_tabs');
 
     $element->start_controls_tab('supercraft_tab_entrance', [
