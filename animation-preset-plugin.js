@@ -956,6 +956,81 @@ const lineByLine = parseBool(wrapper.dataset.scrollFillLine || 'false');
     });
   }
 
+  // Helper to safely locate or dynamically isolate a container's background image
+  function getOrCreateBgImage(container, styles) {
+    // 1. Try to find existing dedicated background/overlay elements
+    let bgImage = container.querySelector(
+      '.elementor-background-overlay, .elementor-background-slideshow__image, .elementor-background-slideshow, .elementor-background-image, .supercraft-dynamic-bg-layer'
+    );
+
+    if (bgImage) return bgImage;
+
+    // 2. Isolate inline backgrounds set on the container itself
+    const inlineBg = styles.backgroundImage;
+    if (inlineBg && inlineBg !== 'none' && !inlineBg.includes('gradient')) {
+      const bgPos = styles.backgroundPosition || 'center center';
+      const bgSize = styles.backgroundSize || 'cover';
+      const bgRepeat = styles.backgroundRepeat || 'no-repeat';
+
+      const bgLayer = document.createElement('div');
+      bgLayer.className = 'supercraft-dynamic-bg-layer';
+      Object.assign(bgLayer.style, {
+        position: 'absolute',
+        top: '0',
+        left: '0',
+        width: '100%',
+        height: '100%',
+        backgroundImage: inlineBg,
+        backgroundPosition: bgPos,
+        backgroundSize: bgSize,
+        backgroundRepeat: bgRepeat,
+        zIndex: '0',
+        pointerEvents: 'none',
+        willChange: 'transform',
+      });
+
+      // Ensure the container is a relative positioning context and clips children
+      container.style.position = 'relative';
+      container.style.overflow = 'hidden';
+
+      // Ensure container contents remain in front of the new background layer
+      Array.from(container.children).forEach((child) => {
+        const childStyles = getComputedStyle(child);
+        if (childStyles.position === 'static') {
+          child.style.position = 'relative';
+        }
+        if (!childStyles.zIndex || childStyles.zIndex === 'auto') {
+          child.style.zIndex = '1';
+        }
+      });
+
+      container.prepend(bgLayer);
+      container.style.backgroundImage = 'none'; // Prevent double rendering
+      return bgLayer;
+    }
+
+    // 3. Fallback to child images if it is the primary element or marked
+    const images = container.querySelectorAll('img');
+    for (const img of images) {
+      const imgStyle = getComputedStyle(img);
+      if (
+        imgStyle.position === 'absolute' || 
+        imgStyle.objectFit === 'cover' || 
+        img.classList.contains('bg-image') || 
+        img.classList.contains('hero-image')
+      ) {
+        return img;
+      }
+    }
+
+    // 4. Default to first image only if it's the sole image widget
+    if (images.length === 1) {
+      return images[0];
+    }
+
+    return null;
+  }
+
   /* ==========================================
      CONTAINER REVEAL ANIMATION
      Mask reveal for any container (center-out or directional)
@@ -1047,6 +1122,11 @@ const lineByLine = parseBool(wrapper.dataset.scrollFillLine || 'false');
             gsap.set(overlay, { autoAlpha: 0 });
           }
 
+          const bgImage = getOrCreateBgImage(container, styles);
+          if (bgImage) {
+            gsap.set(bgImage, { scale: 1 });
+          }
+
           const tl = gsap.timeline({
             scrollTrigger: {
               trigger: container,
@@ -1079,12 +1159,28 @@ const lineByLine = parseBool(wrapper.dataset.scrollFillLine || 'false');
             }
           );
 
+          if (bgImage) {
+            tl.to(bgImage, {
+              scale: 0.86,
+              ease: 'power2.inOut',
+              duration: 0.45,
+            }, '<');
+          }
+
           tl.to(container, {
             clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)',
             webkitClipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)',
             ease: 'power4.inOut',
             duration: 0.55,
           });
+
+          if (bgImage) {
+            tl.to(bgImage, {
+              scale: 1,
+              ease: 'power4.inOut',
+              duration: 0.55,
+            }, '<');
+          }
 
           if (overlay) {
             tl.to(overlay, {
@@ -1131,6 +1227,11 @@ const lineByLine = parseBool(wrapper.dataset.scrollFillLine || 'false');
             gsap.set(overlay, { autoAlpha: 0 });
           }
 
+          const bgImage = getOrCreateBgImage(container, styles);
+          if (bgImage) {
+            gsap.set(bgImage, { scale: 1 });
+          }
+
           const tl = gsap.timeline({
             scrollTrigger: {
               trigger: container,
@@ -1156,6 +1257,14 @@ const lineByLine = parseBool(wrapper.dataset.scrollFillLine || 'false');
             delay
           );
 
+          if (bgImage) {
+            tl.to(bgImage, {
+              scale: 0.86,
+              duration: duration * 0.45,
+              ease: 'power2.inOut',
+            }, '<');
+          }
+
           tl.to(
             container,
             {
@@ -1166,6 +1275,14 @@ const lineByLine = parseBool(wrapper.dataset.scrollFillLine || 'false');
             },
             `>${delay > 0 ? '' : '=-0.05'}`
           );
+
+          if (bgImage) {
+            tl.to(bgImage, {
+              scale: 1,
+              duration: duration * 0.55,
+              ease: 'power4.inOut',
+            }, '<');
+          }
 
           if (overlay) {
             tl.to(overlay, {
@@ -1305,6 +1422,101 @@ const lineByLine = parseBool(wrapper.dataset.scrollFillLine || 'false');
       });
 
       el.dataset.scrollTransformScrubInit = 'true';
+    });
+  }
+
+  /* ==========================================
+     VIDEO GSAP ANIMATIONS
+     ========================================== */
+  function initVideoGSAP() {
+    const videoContainers = gsap.utils.toArray('.video-gsap-init');
+
+    videoContainers.forEach((container) => {
+      if (container.dataset.videoGsapInit === 'true') return;
+
+      const video = container.querySelector('video');
+      if (!video) {
+        return; // Don't mark init, it might be injected later by Elementor
+      }
+
+      const isScrollScrub = container.classList.contains('video-gsap-scroll-scrub');
+      if (!isScrollScrub) {
+        container.dataset.videoGsapInit = 'true';
+        return;
+      }
+
+      container.dataset.videoGsapInit = 'true';
+
+      // Force pause and strip autoplay to prevent fighting with GSAP scrubbing
+      video.removeAttribute('autoplay');
+      video.removeAttribute('loop');
+      video.pause();
+
+      let src = video.currentSrc || video.src || video.querySelector('source')?.src;
+      
+      // Make sure the video is 'activated' on iOS
+      function once(el, event, fn, opts) {
+        var onceFn = function (e) {
+          el.removeEventListener(event, onceFn);
+          fn.apply(this, arguments);
+        };
+        el.addEventListener(event, onceFn, opts);
+        return onceFn;
+      }
+      
+      once(document.documentElement, 'touchstart', function (e) {
+        let playPromise = video.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(()=>{});
+        }
+        video.pause();
+      });
+
+      const scrollStart = container.dataset.videoScrollStart || 'top top';
+      const scrollEnd = container.dataset.videoScrollEnd || 'bottom bottom';
+      const fetchDelay = parseInt(container.dataset.videoFetchDelay || '1000', 10);
+      const smoothing = parseFloat(container.dataset.videoScrubSmoothing || '0.5');
+
+      let tl = gsap.timeline({
+        defaults: { duration: 1 },
+        scrollTrigger: {
+          trigger: container,
+          start: scrollStart,
+          end: scrollEnd,
+          scrub: smoothing
+        }
+      });
+
+      // If metadata already loaded, setup tween right away, else wait
+      if (video.readyState >= 1) {
+        tl.fromTo(video, { currentTime: 0 }, { currentTime: video.duration || 1 });
+      } else {
+        once(video, 'loadedmetadata', () => {
+          tl.fromTo(video, { currentTime: 0 }, { currentTime: video.duration || 1 });
+        });
+      }
+
+      setTimeout(function () {
+        if (window.fetch && src && !src.startsWith('blob:')) {
+          fetch(src)
+            .then((response) => response.blob())
+            .then((blob) => {
+              var blobURL = URL.createObjectURL(blob);
+              var t = video.currentTime;
+              once(document.documentElement, 'touchstart', function (e) {
+                let playPromise = video.play();
+                if (playPromise !== undefined) {
+                  playPromise.catch(()=>{});
+                }
+                video.pause();
+              });
+              video.setAttribute('src', blobURL);
+              video.currentTime = t + 0.01;
+            })
+            .catch(() => {});
+        }
+      }, fetchDelay);
+
     });
   }
 
@@ -1929,6 +2141,7 @@ const activeIdleTimelines = new Map();
     initScrollTransformScrub();
     initImageReveal();
     initContainerReveal();
+    initVideoGSAP();
     initAdvancedAnimations();
   }
 

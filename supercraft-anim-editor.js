@@ -68,6 +68,8 @@ function applyStartStateFromStyles(el) {
     'container-reveal-top',
     'container-reveal-bottom',
     'container-reveal-cinematic-gate',
+    'video-gsap-init',
+    'video-gsap-scroll-scrub',
     'scroll-fill-text',
     'fade-left',
     'fade-right',
@@ -629,6 +631,25 @@ function applyStartStateFromStyles(el) {
         }
         break;
 
+      case 'video-gsap':
+        $el.addClass('video-gsap-init');
+        if (settings.supercraft_video_preset === 'scroll-scrub' || !settings.supercraft_video_preset) {
+          $el.addClass('video-gsap-scroll-scrub');
+        }
+        if (settings.supercraft_video_scroll_start) {
+          $el.attr('data-video-scroll-start', settings.supercraft_video_scroll_start);
+        }
+        if (settings.supercraft_video_scroll_end) {
+          $el.attr('data-video-scroll-end', settings.supercraft_video_scroll_end);
+        }
+        if (settings.supercraft_video_fetch_delay !== '' && settings.supercraft_video_fetch_delay !== null) {
+          $el.attr('data-video-fetch-delay', settings.supercraft_video_fetch_delay);
+        }
+        if (settings.supercraft_video_scrub_smoothing !== '' && settings.supercraft_video_scrub_smoothing !== null) {
+          $el.attr('data-video-scrub-smoothing', settings.supercraft_video_scrub_smoothing);
+        }
+        break;
+
       case 'scroll-fill-text':
         $el.addClass('scroll-fill-text');
         const normalizeColor = (val, globalKey) => {
@@ -832,12 +853,13 @@ function applyStartStateFromStyles(el) {
           
           // Remove init flags
           document.querySelectorAll(
-            '[data-scroll-transform-init], [data-scroll-transform-scrub-init], [data-image-reveal-init], [data-container-reveal-init], [data-scroll-fill-init], [data-anim-init]'
+            '[data-scroll-transform-init], [data-scroll-transform-scrub-init], [data-image-reveal-init], [data-container-reveal-init], [data-video-gsap-init], [data-scroll-fill-init], [data-anim-init]'
           ).forEach(el => {
             delete el.dataset.scrollTransformInit;
             delete el.dataset.scrollTransformScrubInit;
             delete el.dataset.imageRevealInit;
             delete el.dataset.containerRevealInit;
+            delete el.dataset.videoGsapInit;
             delete el.dataset.scrollFillInit;
             delete el.dataset.animInit;
           });
@@ -926,11 +948,12 @@ function applyStartStateFromStyles(el) {
     if (window.ScrollTrigger) {
       ScrollTrigger.getAll().forEach((st) => st.kill());
     }
-    document.querySelectorAll('[data-advanced-init], [data-scroll-transform-init], [data-scroll-transform-scrub-init], [data-image-reveal-init], [data-container-reveal-init], [data-scroll-fill-init], [data-anim-init]').forEach((el) => {
+    document.querySelectorAll('[data-advanced-init], [data-scroll-transform-init], [data-scroll-transform-scrub-init], [data-image-reveal-init], [data-container-reveal-init], [data-video-gsap-init], [data-scroll-fill-init], [data-anim-init]').forEach((el) => {
       delete el.dataset.scrollTransformInit;
       delete el.dataset.scrollTransformScrubInit;
       delete el.dataset.imageRevealInit;
       delete el.dataset.containerRevealInit;
+      delete el.dataset.videoGsapInit;
       delete el.dataset.scrollFillInit;
       delete el.dataset.animInit;
       delete el.dataset.advancedInit;

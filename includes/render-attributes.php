@@ -371,6 +371,26 @@ function supercraft_apply_attrs($element) {
             }
             break;
 
+        case 'video-gsap':
+            $classes[] = 'video-gsap-init';
+            $preset = $settings['supercraft_video_preset'] ?? 'scroll-scrub';
+            if ($preset === 'scroll-scrub') {
+                $classes[] = 'video-gsap-scroll-scrub';
+            }
+            if (!empty($settings['supercraft_video_scroll_start'])) {
+                $data_attrs['data-video-scroll-start'] = esc_attr($settings['supercraft_video_scroll_start']);
+            }
+            if (!empty($settings['supercraft_video_scroll_end'])) {
+                $data_attrs['data-video-scroll-end'] = esc_attr($settings['supercraft_video_scroll_end']);
+            }
+            if ($settings['supercraft_video_fetch_delay'] !== '' && $settings['supercraft_video_fetch_delay'] !== null) {
+                $data_attrs['data-video-fetch-delay'] = esc_attr($settings['supercraft_video_fetch_delay']);
+            }
+            if ($settings['supercraft_video_scrub_smoothing'] !== '' && $settings['supercraft_video_scrub_smoothing'] !== null) {
+                $data_attrs['data-video-scrub-smoothing'] = esc_attr($settings['supercraft_video_scrub_smoothing']);
+            }
+            break;
+
         case 'scroll-fill-text':
             $classes[] = 'scroll-fill-text';
             if (!empty($settings['supercraft_fill_start'])) {

@@ -106,6 +106,7 @@ $supercraft_controls_callback = function ($element, $section_id) {
         'image-reveal' => __('Image Reveal', 'supercraft-anim'),
         'container-reveal' => __('Container Reveal', 'supercraft-anim'),
         'scroll-fill-text' => __('Scroll Fill Text', 'supercraft-anim'),
+        'video-gsap' => __('Video GSAP', 'supercraft-anim'),
     ];
 
     $element->start_controls_section(
@@ -905,6 +906,77 @@ $supercraft_controls_callback = function ($element, $section_id) {
             'condition' => [
                 'supercraft_anim_category' => 'container-reveal',
                 'supercraft_container_scrub' => 'yes',
+            ],
+        ]
+    );
+
+    $element->add_control(
+        'supercraft_video_preset',
+        [
+            'label' => __('Preset', 'supercraft-anim'),
+            'type' => \Elementor\Controls_Manager::SELECT,
+            'options' => [
+                'scroll-scrub' => __('Scroll Scrub Background Video', 'supercraft-anim'),
+            ],
+            'default' => 'scroll-scrub',
+            'frontend_available' => false,
+            'condition' => [
+                'supercraft_anim_category' => 'video-gsap',
+            ],
+        ]
+    );
+
+    $element->add_control(
+        'supercraft_video_scroll_start',
+        [
+            'label' => __('Scroll Start', 'supercraft-anim'),
+            'type' => \Elementor\Controls_Manager::TEXT,
+            'default' => 'top top',
+            'frontend_available' => false,
+            'condition' => [
+                'supercraft_anim_category' => 'video-gsap',
+            ],
+        ]
+    );
+
+    $element->add_control(
+        'supercraft_video_scroll_end',
+        [
+            'label' => __('Scroll End', 'supercraft-anim'),
+            'type' => \Elementor\Controls_Manager::TEXT,
+            'default' => 'bottom bottom',
+            'frontend_available' => false,
+            'condition' => [
+                'supercraft_anim_category' => 'video-gsap',
+            ],
+        ]
+    );
+
+    $element->add_control(
+        'supercraft_video_fetch_delay',
+        [
+            'label' => __('Fetch Buffer Delay (ms)', 'supercraft-anim'),
+            'type' => \Elementor\Controls_Manager::NUMBER,
+            'default' => 1000,
+            'frontend_available' => false,
+            'condition' => [
+                'supercraft_anim_category' => 'video-gsap',
+            ],
+        ]
+    );
+
+    $element->add_control(
+        'supercraft_video_scrub_smoothing',
+        [
+            'label' => __('Scrub Smoothing (0-3)', 'supercraft-anim'),
+            'type' => \Elementor\Controls_Manager::NUMBER,
+            'min' => 0,
+            'max' => 5,
+            'step' => 0.1,
+            'default' => 0.5,
+            'frontend_available' => false,
+            'condition' => [
+                'supercraft_anim_category' => 'video-gsap',
             ],
         ]
     );
